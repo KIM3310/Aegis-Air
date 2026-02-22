@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aegis-Air Ops Console</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background Particles / Glow -->
+    <div class="ambient-glow"></div>
+
+    <header class="glass-header">
+        <div class="logo">
+            <span class="shield">🛡️</span>
+            <h1>Aegis-Air <span>Ops Console</span></h1>
+        </div>
+        <div class="badge">Zero-Trust Air-Gapped Mode Active</div>
+    </header>
+
+    <main class="dashboard-grid">
+        <!-- Left Panel: Target Stats & Control -->
+        <section class="panel glass-panel control-panel">
+            <div class="panel-header">
+                <h2>Target Infrastructure</h2>
+                <span class="status healthy" id="target-status">● ONLINE</span>
+            </div>
+            
+            <div class="metrics">
+                <div class="metric-card">
+                    <span class="label">P99 Latency</span>
+                    <span class="value" id="metric-latency">12ms</span>
+                </div>
+                <div class="metric-card">
+                    <span class="label">Error Rate</span>
+                    <span class="value" id="metric-error">0.0%</span>
+                </div>
+            </div>
+
+            <div class="chaos-controls">
+                <h3>Chaos Engineering</h3>
+                <p>Simulate a severe network/database outage to trigger the autonomous zero-trust AIOps SRE engine.</p>
+                <button id="chaos-btn" class="cyber-btn">UNLEASH CHAOS</button>
+            </div>
+        </section>
+
+        <!-- Right Panel: Zero-Trust AI Terminal -->
+        <section class="panel glass-panel terminal-panel">
+            <div class="panel-header terminal-header">
+                <h2>Local LLM Telemetry (Phi-3)</h2>
+                <div class="window-controls">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                </div>
+            </div>
+            
+            <div class="terminal-container" id="terminal-output">
+                <div class="log-line system">Waiting for incident triggers...</div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
