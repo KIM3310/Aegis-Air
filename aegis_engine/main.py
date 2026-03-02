@@ -1,10 +1,9 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import httpx
 import json
-import time
 import asyncio
 import random
 from datetime import datetime
@@ -22,6 +21,12 @@ app.add_middleware(
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "phi3"
 TARGET_API_URL = "http://localhost:8000/api/checkout"
+LLM_FALLBACK_RESPONSE = (
+    "[RCA Analysis]: Local Phi-3 model is unavailable, but checkout failures indicate a probable downstream "
+    "database dependency outage.\n"
+    "[Action Items]: 1) Verify `ollama serve` and model availability (`ollama list`). "
+    "2) Inspect checkout database connectivity and recent deployment changes."
+)
 
 class AlertPayload(BaseModel):
     service_name: str
@@ -29,9 +34,21 @@ class AlertPayload(BaseModel):
     status_code: int
     error_details: str
 
+def sse_event(payload):
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+def sse_log(message):
+    return sse_event({"type": "log", "content": f"{message}\n"})
+
+def sse_token(message):
+    return sse_event({"type": "token", "content": message})
+
+def sse_done():
+    return sse_event({"type": "done"})
+
 async def generate_chaos_and_stream_response():
     # Step 1: Simulate Chaos
-    yield "data: {\"type\": \"log\", \"content\": \"[Chaos Engine] Initiating assault on E-Commerce API...\\n\"}\n\n"
+    yield sse_log("[Chaos Engine] Initiating assault on E-Commerce API...")
     
     incident_detected = False
     error_text = ""
@@ -39,30 +56,31 @@ async def generate_chaos_and_stream_response():
     
     async with httpx.AsyncClient(timeout=10.0) as client:
         for i in range(1, 15):
-            yield f"data: {{\"type\": \"log\", \"content\": \"[Request {i}] -> GET {TARGET_API_URL}\\n\"}}\n\n"
+            yield sse_log(f"[Request {i}] -> GET {TARGET_API_URL}")
             try:
                 # We do a tiny sleep so the UI can see the logs pumping
                 await asyncio.sleep(0.5 + random.random())
                 response = await client.get(TARGET_API_URL)
                 
                 if response.status_code == 200:
-                    yield f"data: {{\"type\": \"log\", \"content\": \"      ✅ Success 200 OK\\n\"}}\n\n"
+                    yield sse_log("      ✅ Success 200 OK")
                 elif response.status_code == 500:
-                    yield f"data: {{\"type\": \"log\", \"content\": \"      🚨 INCIDENT DETECTED! HTTP 500\\n\"}}\n\n"
+                    yield sse_log("      🚨 INCIDENT DETECTED! HTTP 500")
                     incident_detected = True
+                    status_code = response.status_code
                     error_text = response.text
                     break
-            except Exception as e:
-                yield f"data: {{\"type\": \"log\", \"content\": \"      ❌ Connection Failed: {e}\\n\"}}\n\n"
+            except Exception as exc:
+                yield sse_log(f"      ❌ Connection Failed: {exc}")
         
         if not incident_detected:
-            yield "data: {\"type\": \"log\", \"content\": \"[Chaos Engine] Failed to trigger an incident. Try again.\\n\"}\n\n"
-            yield "data: {\"type\": \"done\"}\n\n"
+            yield sse_log("[Chaos Engine] Failed to trigger an incident. Try again.")
+            yield sse_done()
             return
             
     # Step 2: Query Zero-Trust LLM with streaming output
-    yield "data: {\"type\": \"log\", \"content\": \"\\n[Aegis-Air] 🚨 CRITICAL ALERT RECEIVED (Code: 500)\\n\"}\n\n"
-    yield "data: {\"type\": \"log\", \"content\": \"[Aegis-Air] 🧠 Querying Local Zero-Trust LLM (Phi-3) for RCA...\\n\\n\"}\n\n"
+    yield sse_log(f"[Aegis-Air] 🚨 CRITICAL ALERT RECEIVED (Code: {status_code})")
+    yield sse_log("[Aegis-Air] 🧠 Querying Local Zero-Trust LLM (Phi-3) for RCA...")
     
     prompt = f"""You are Aegis-Air, an elite Site Reliability Engineering (SRE) AI operating in a zero-trust, air-gapped environment.
     Analyze the following incident and provide a Root Cause Analysis (RCA) and 2 immediate action items. Keep it extremely concise and professional.
@@ -78,25 +96,37 @@ async def generate_chaos_and_stream_response():
     [Action Items]: <text>
     """
     
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        async with client.stream("POST", OLLAMA_URL, json={
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "stream": True
-        }) as response:
-            async for chunk in response.aiter_lines():
-                if chunk:
+    llm_unavailable = False
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            async with client.stream("POST", OLLAMA_URL, json={
+                "model": MODEL_NAME,
+                "prompt": prompt,
+                "stream": True
+            }) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_lines():
+                    if not chunk:
+                        continue
                     try:
                         data = json.loads(chunk)
-                        token = data.get("response", "")
-                        # Send the token to the frontend
-                        escaped_token = json.dumps(token)
-                        yield f"data: {{\"type\": \"token\", \"content\": {escaped_token}}}\n\n"
-                    except:
-                        pass
-                        
-    yield "data: {\"type\": \"log\", \"content\": \"\\n\\n[Aegis-Air] ✅ RCA Generation Complete.\\n\"}\n\n"
-    yield "data: {\"type\": \"done\"}\n\n"
+                    except json.JSONDecodeError:
+                        continue
+                    token = data.get("response", "")
+                    if token:
+                        yield sse_token(token)
+    except httpx.HTTPError as exc:
+        llm_unavailable = True
+        yield sse_log(f"[Aegis-Air] ❌ Local LLM request failed: {exc}")
+    except Exception as exc:
+        llm_unavailable = True
+        yield sse_log(f"[Aegis-Air] ❌ Unexpected LLM stream error: {exc}")
+
+    if llm_unavailable:
+        yield sse_token(LLM_FALLBACK_RESPONSE)
+
+    yield sse_log("[Aegis-Air] ✅ RCA Generation Complete.")
+    yield sse_done()
 
 @app.get("/api/chaos/trigger")
 async def trigger_chaos_endpoint():
