@@ -23,6 +23,4 @@ nohup.out
 
 # Local artifacts
 media/
-
-# Debug artifacts
-.venv_*/
+.codex_runs/
