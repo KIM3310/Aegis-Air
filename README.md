@@ -61,3 +61,20 @@ terraform init
 terraform plan
 terraform apply
 ```
+
+<!-- codex:local-verification:start -->
+## Local Verification
+```bash
+/Library/Developer/CommandLineTools/usr/bin/python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install -r requirements.txt
+python -m compileall -q .
+```
+
+## Repository Hygiene
+- Keep runtime artifacts out of commits (`.codex_runs/`, cache folders, temporary venvs).
+- Prefer running verification commands above before opening a PR.
+
+_Last updated: 2026-03-04_
+<!-- codex:local-verification:end -->
