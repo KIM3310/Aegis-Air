@@ -22,6 +22,31 @@ Instrumentator().instrument(app).expose(app)
 def read_root():
     return {"status": "ok", "service": "E-Commerce API"}
 
+
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "service": "dummy-ecommerce-api",
+        "links": {
+            "meta": "/meta",
+            "metrics": "/metrics",
+        },
+    }
+
+
+@app.get("/meta")
+def meta():
+    return {
+        "service": "dummy-ecommerce-api",
+        "version": "1.0",
+        "chaos_profile": {
+            "checkout_error_rate": 0.30,
+            "checkout_latency_rate": 0.10,
+        },
+        "routes": ["/", "/health", "/meta", "/api/products", "/api/checkout", "/metrics"],
+    }
+
 @app.get("/api/products")
 def get_products():
     # Simulate some processing time

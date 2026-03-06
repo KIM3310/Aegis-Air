@@ -108,9 +108,34 @@ async def handle_alert(payload: AlertPayload):
     # Backward compatibility for the CLI tool
     return {"status": "success", "message": "Webhook received. Use /api/chaos/trigger for UI streaming."}
 
+@app.get("/api/meta")
+def engine_meta():
+    return {
+        "service": "aegis-air-engine",
+        "mode": "zero-trust",
+        "model": MODEL_NAME,
+        "ollama_url": OLLAMA_URL,
+        "target_api_url": TARGET_API_URL,
+        "features": [
+            "chaos-trigger",
+            "streaming-rca",
+            "webhook-alert-ingest",
+            "static-frontend-mount",
+        ],
+        "routes": ["/health", "/api/meta", "/api/chaos/trigger", "/webhook/alert"],
+    }
+
 @app.get("/health")
 def health_check():
-    return {"status": "Aegis-Engine Online. Zero-Trust Mode Active."}
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "message": "Aegis-Engine Online. Zero-Trust Mode Active.",
+        "links": {
+            "meta": "/api/meta",
+            "chaos_trigger": "/api/chaos/trigger",
+        },
+    }
     
 from fastapi.staticfiles import StaticFiles
 import os
