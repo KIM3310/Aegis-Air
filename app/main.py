@@ -18,6 +18,19 @@ app.add_middleware(
 # Instrument the app to expose /metrics for Prometheus
 Instrumentator().instrument(app).expose(app)
 
+CHECKOUT_ERROR_RATE = 0.30
+CHECKOUT_LATENCY_RATE = 0.10
+
+
+def build_store_diagnostics():
+    return {
+        "chaos_enabled": True,
+        "metrics_ready": True,
+        "checkout_error_rate": CHECKOUT_ERROR_RATE,
+        "checkout_latency_rate": CHECKOUT_LATENCY_RATE,
+        "next_action": "Drive /api/checkout repeatedly and confirm /metrics reflects the injected failure profile.",
+    }
+
 @app.get("/")
 def read_root():
     return {"status": "ok", "service": "E-Commerce API"}
@@ -28,6 +41,7 @@ def health():
     return {
         "status": "ok",
         "service": "dummy-ecommerce-api",
+        "diagnostics": build_store_diagnostics(),
         "links": {
             "meta": "/meta",
             "metrics": "/metrics",
@@ -41,9 +55,10 @@ def meta():
         "service": "dummy-ecommerce-api",
         "version": "1.0",
         "chaos_profile": {
-            "checkout_error_rate": 0.30,
-            "checkout_latency_rate": 0.10,
+            "checkout_error_rate": CHECKOUT_ERROR_RATE,
+            "checkout_latency_rate": CHECKOUT_LATENCY_RATE,
         },
+        "diagnostics": build_store_diagnostics(),
         "routes": ["/", "/health", "/meta", "/api/products", "/api/checkout", "/metrics"],
     }
 
@@ -57,9 +72,9 @@ def get_products():
 def checkout():
     # Simulate random latency and potential 500 errors to create interesting metrics and trigger chaos testing
     chaos = random.random()
-    if chaos < 0.30:  # 30% chance of severe error
+    if chaos < CHECKOUT_ERROR_RATE:
         raise HTTPException(status_code=500, detail="Internal Server Error: Database Connection Lost")
-    elif chaos < 0.40: # 10% chance of simulated latency
+    elif chaos < CHECKOUT_ERROR_RATE + CHECKOUT_LATENCY_RATE:
         time.sleep(random.uniform(1.0, 3.0))
-        
+
     return {"status": "success", "order_id": random.randint(1000, 9999)}

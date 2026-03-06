@@ -8,6 +8,7 @@ import time
 import asyncio
 import random
 from datetime import datetime
+import os
 
 app = FastAPI(title="Aegis-Air Engine", description="Zero-Trust LLM SRE RCA Generator")
 
@@ -19,9 +20,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "phi3"
-TARGET_API_URL = "http://localhost:8000/api/checkout"
+OLLAMA_URL = os.getenv("AEGIS_AIR_OLLAMA_URL", "http://localhost:11434/api/generate")
+MODEL_NAME = os.getenv("AEGIS_AIR_MODEL", "phi3")
+TARGET_API_URL = os.getenv("AEGIS_AIR_TARGET_API_URL", "http://localhost:8000/api/checkout")
+
+
+def build_engine_diagnostics():
+    ollama_configured = OLLAMA_URL.startswith("http")
+    target_api_configured = TARGET_API_URL.startswith("http")
+    live_loop_ready = ollama_configured and target_api_configured
+    return {
+        "llm_mode": "local-ollama",
+        "ollama_configured": ollama_configured,
+        "target_api_configured": target_api_configured,
+        "live_loop_ready": live_loop_ready,
+        "next_action": (
+            "Trigger /api/chaos/trigger to validate the streaming RCA loop."
+            if live_loop_ready
+            else "Configure AEGIS_AIR_OLLAMA_URL and AEGIS_AIR_TARGET_API_URL for live chaos drills."
+        ),
+    }
 
 class AlertPayload(BaseModel):
     service_name: str
@@ -116,6 +134,7 @@ def engine_meta():
         "model": MODEL_NAME,
         "ollama_url": OLLAMA_URL,
         "target_api_url": TARGET_API_URL,
+        "diagnostics": build_engine_diagnostics(),
         "features": [
             "chaos-trigger",
             "streaming-rca",
@@ -131,14 +150,14 @@ def health_check():
         "status": "ok",
         "service": "aegis-air-engine",
         "message": "Aegis-Engine Online. Zero-Trust Mode Active.",
+        "diagnostics": build_engine_diagnostics(),
         "links": {
             "meta": "/api/meta",
             "chaos_trigger": "/api/chaos/trigger",
         },
     }
-    
+
 from fastapi.staticfiles import StaticFiles
-import os
 
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend")
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
