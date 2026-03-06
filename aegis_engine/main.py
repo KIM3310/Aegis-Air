@@ -129,12 +129,18 @@ async def handle_alert(payload: AlertPayload):
 @app.get("/api/meta")
 def engine_meta():
     return {
+        "status": "ok",
         "service": "aegis-air-engine",
         "mode": "zero-trust",
         "model": MODEL_NAME,
         "ollama_url": OLLAMA_URL,
         "target_api_url": TARGET_API_URL,
         "diagnostics": build_engine_diagnostics(),
+        "ops_contract": {
+            "schema": "ops-envelope-v1",
+            "version": 1,
+            "required_fields": ["service", "status", "diagnostics.next_action"],
+        },
         "features": [
             "chaos-trigger",
             "streaming-rca",
@@ -151,6 +157,11 @@ def health_check():
         "service": "aegis-air-engine",
         "message": "Aegis-Engine Online. Zero-Trust Mode Active.",
         "diagnostics": build_engine_diagnostics(),
+        "ops_contract": {
+            "schema": "ops-envelope-v1",
+            "version": 1,
+            "required_fields": ["service", "status", "diagnostics.next_action"],
+        },
         "links": {
             "meta": "/api/meta",
             "chaos_trigger": "/api/chaos/trigger",

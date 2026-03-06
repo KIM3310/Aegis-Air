@@ -30,11 +30,13 @@ def test_engine_health_and_meta():
     assert health.json()["service"] == "aegis-air-engine"
     assert health.json()["links"]["meta"] == "/api/meta"
     assert health.json()["diagnostics"]["live_loop_ready"] is True
+    assert health.json()["ops_contract"]["schema"] == "ops-envelope-v1"
     assert "next_action" in health.json()["diagnostics"]
 
     assert meta.status_code == 200
     body = meta.json()
     assert body["service"] == "aegis-air-engine"
+    assert body["status"] == "ok"
     assert body["model"] == "phi3"
     assert body["diagnostics"]["llm_mode"] == "local-ollama"
     assert "/api/chaos/trigger" in body["routes"]
@@ -50,10 +52,12 @@ def test_store_api_health_and_meta():
     assert health.json()["service"] == "dummy-ecommerce-api"
     assert health.json()["links"]["metrics"] == "/metrics"
     assert health.json()["diagnostics"]["metrics_ready"] is True
+    assert health.json()["ops_contract"]["schema"] == "ops-envelope-v1"
 
     assert meta.status_code == 200
     body = meta.json()
     assert body["service"] == "dummy-ecommerce-api"
+    assert body["status"] == "ok"
     assert body["chaos_profile"]["checkout_error_rate"] == 0.30
     assert body["diagnostics"]["chaos_enabled"] is True
     assert "/api/checkout" in body["routes"]
