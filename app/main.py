@@ -42,6 +42,11 @@ def health():
         "status": "ok",
         "service": "dummy-ecommerce-api",
         "diagnostics": build_store_diagnostics(),
+        "ops_contract": {
+            "schema": "ops-envelope-v1",
+            "version": 1,
+            "required_fields": ["service", "status", "diagnostics.next_action"],
+        },
         "links": {
             "meta": "/meta",
             "metrics": "/metrics",
@@ -52,6 +57,7 @@ def health():
 @app.get("/meta")
 def meta():
     return {
+        "status": "ok",
         "service": "dummy-ecommerce-api",
         "version": "1.0",
         "chaos_profile": {
@@ -59,6 +65,11 @@ def meta():
             "checkout_latency_rate": CHECKOUT_LATENCY_RATE,
         },
         "diagnostics": build_store_diagnostics(),
+        "ops_contract": {
+            "schema": "ops-envelope-v1",
+            "version": 1,
+            "required_fields": ["service", "status", "diagnostics.next_action"],
+        },
         "routes": ["/", "/health", "/meta", "/api/products", "/api/checkout", "/metrics"],
     }
 
