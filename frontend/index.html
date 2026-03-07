@@ -7,56 +7,142 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Background Particles / Glow -->
-    <div class="ambient-glow"></div>
+    <div class="ambient-glow ambient-glow--cyan"></div>
+    <div class="ambient-glow ambient-glow--red"></div>
 
     <header class="glass-header">
         <div class="logo">
             <span class="shield">🛡️</span>
-            <h1>Aegis-Air <span>Ops Console</span></h1>
+            <div>
+                <h1>Aegis-Air <span>Ops Console</span></h1>
+                <p class="header-copy">Zero-trust incident review with local RCA generation and replay evals.</p>
+            </div>
         </div>
-        <div class="badge">Zero-Trust Air-Gapped Mode Active</div>
+        <div class="header-badges">
+            <span class="badge">Local-first</span>
+            <span class="badge">Replay Evals</span>
+            <span class="badge">Air-gapped Ready</span>
+        </div>
     </header>
 
-    <main class="dashboard-grid">
-        <!-- Left Panel: Target Stats & Control -->
-        <section class="panel glass-panel control-panel">
-            <div class="panel-header">
-                <h2>Target Infrastructure</h2>
-                <span class="status healthy" id="target-status">● ONLINE</span>
-            </div>
-            
-            <div class="metrics">
-                <div class="metric-card">
-                    <span class="label">P99 Latency</span>
-                    <span class="value" id="metric-latency">12ms</span>
+    <main class="dashboard-shell">
+        <section class="dashboard-grid">
+            <section class="panel glass-panel control-panel">
+                <div class="panel-header">
+                    <h2>Target Infrastructure</h2>
+                    <span class="status healthy" id="target-status">● STANDBY</span>
                 </div>
-                <div class="metric-card">
-                    <span class="label">Error Rate</span>
-                    <span class="value" id="metric-error">0.0%</span>
-                </div>
-            </div>
 
-            <div class="chaos-controls">
-                <h3>Chaos Engineering</h3>
-                <p>Simulate a severe network/database outage to trigger the autonomous zero-trust AIOps SRE engine.</p>
-                <button id="chaos-btn" class="cyber-btn">UNLEASH CHAOS</button>
+                <div class="metrics">
+                    <div class="metric-card">
+                        <span class="label">P95 Latency</span>
+                        <span class="value" id="metric-latency">--</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Error Rate</span>
+                        <span class="value" id="metric-error">--</span>
+                    </div>
+                </div>
+
+                <div class="ops-brief">
+                    <h3>Run Objective</h3>
+                    <p>Probe the target, capture failure signals, classify the incident, and emit a grounded RCA with actions that another operator can use immediately.</p>
+                </div>
+
+                <div class="chaos-controls">
+                    <h3>Live Probe Loop</h3>
+                    <p>Run a short chaos-assisted probe loop against the target API. Aegis-Air will produce a structured report even if Ollama is unavailable.</p>
+                    <button id="chaos-btn" class="cyber-btn">RUN INCIDENT REVIEW</button>
+                </div>
+            </section>
+
+            <div class="analysis-stack">
+                <section class="panel glass-panel report-panel">
+                    <div class="panel-header">
+                        <h2>Latest Incident Report</h2>
+                        <span class="mini-badge" id="report-source">Awaiting run</span>
+                    </div>
+
+                    <div class="report-metrics">
+                        <div class="report-chip">
+                            <span class="chip-label">Severity</span>
+                            <strong id="report-severity">--</strong>
+                        </div>
+                        <div class="report-chip">
+                            <span class="chip-label">Failure Bucket</span>
+                            <strong id="report-bucket">--</strong>
+                        </div>
+                        <div class="report-chip">
+                            <span class="chip-label">Confidence</span>
+                            <strong id="report-confidence">--</strong>
+                        </div>
+                    </div>
+
+                    <div class="report-block">
+                        <span class="section-label">Summary</span>
+                        <p id="report-summary">Run the live probe loop or inspect the replay suite to populate a structured incident report.</p>
+                    </div>
+
+                    <div class="report-grid">
+                        <div class="report-block">
+                            <span class="section-label">Evidence</span>
+                            <ul id="report-evidence" class="detail-list">
+                                <li>Replay and live runs both populate evidence here.</li>
+                            </ul>
+                        </div>
+                        <div class="report-block">
+                            <span class="section-label">Immediate Actions</span>
+                            <ul id="report-actions" class="detail-list">
+                                <li>Actionable next steps appear here after each incident review.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel glass-panel terminal-panel">
+                    <div class="panel-header terminal-header">
+                        <h2>Operator Trace</h2>
+                        <div class="window-controls">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                    </div>
+
+                    <div class="terminal-container" id="terminal-output">
+                        <div class="log-line system">Waiting for incident triggers...</div>
+                    </div>
+                </section>
             </div>
         </section>
 
-        <!-- Right Panel: Zero-Trust AI Terminal -->
-        <section class="panel glass-panel terminal-panel">
-            <div class="panel-header terminal-header">
-                <h2>Local LLM Telemetry (Phi-3)</h2>
-                <div class="window-controls">
-                    <span class="dot red"></span>
-                    <span class="dot yellow"></span>
-                    <span class="dot green"></span>
+        <section class="panel glass-panel replay-panel">
+            <div class="panel-header">
+                <h2>Checked-In Replay Suite</h2>
+                <span class="mini-badge" id="replay-refresh-state">Loading...</span>
+            </div>
+
+            <div class="replay-summary-grid">
+                <div class="summary-card">
+                    <span class="label">Overall Score</span>
+                    <strong id="replay-score">--</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Rubric Checks</span>
+                    <strong id="replay-checks">--</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Severity Accuracy</span>
+                    <strong id="replay-severity-accuracy">--</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Taxonomy Coverage</span>
+                    <strong id="replay-taxonomy">--</strong>
                 </div>
             </div>
-            
-            <div class="terminal-container" id="terminal-output">
-                <div class="log-line system">Waiting for incident triggers...</div>
+
+            <div class="replay-cases" id="replay-cases">
+                <div class="empty-state">Replay suite is loading.</div>
             </div>
         </section>
     </main>
