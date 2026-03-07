@@ -2,6 +2,13 @@
 
 Aegis-Air is a local incident review system for teams that cannot send production telemetry to public APIs. It probes a target service, classifies the incident locally, and returns a structured RCA with severity, failure bucket, evidence, and immediate actions. The repo also includes replay cases for regression testing.
 
+## Demo / Links
+
+- GitHub: https://github.com/KIM3310/Aegis-Air
+- Live demo: https://aegis-air.pages.dev
+
+The Pages deployment uses recorded review data when the local FastAPI engine is not present, so the replay console and incident review flow stay usable without a paid backend.
+
 ## What it includes
 
 - Live probe loop against a target API
