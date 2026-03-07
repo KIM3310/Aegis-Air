@@ -1,0 +1,55 @@
+{
+  "status": "ok",
+  "service": "aegis-air-engine",
+  "summary": {
+    "cases": 4,
+    "passed_checks": 32,
+    "total_checks": 32,
+    "score_pct": 100.0,
+    "severity_accuracy_pct": 100.0,
+    "bucket_accuracy_pct": 100.0,
+    "taxonomy_coverage_pct": 100.0
+  },
+  "runs": [
+    {
+      "title": "Checkout database connection lost",
+      "severity": "SEV1",
+      "failure_bucket": "dependency-outage",
+      "passed_checks": 8,
+      "total_checks": 8,
+      "report": {
+        "summary": "checkout api is failing because a required dependency is unavailable, causing a 42.9% error rate across 14 probes."
+      }
+    },
+    {
+      "title": "Redis timeout storm on cart reads",
+      "severity": "SEV1",
+      "failure_bucket": "dependency-timeout",
+      "passed_checks": 8,
+      "total_checks": 8,
+      "report": {
+        "summary": "cart api is timing out on an upstream dependency; p95 latency reached 2840 ms while request failures climbed to 31.3%."
+      }
+    },
+    {
+      "title": "Checkout worker CPU saturation",
+      "severity": "SEV2",
+      "failure_bucket": "latency-saturation",
+      "passed_checks": 8,
+      "total_checks": 8,
+      "report": {
+        "summary": "checkout api remains reachable, but saturation is pushing p95 latency to 3410 ms and repeatedly breaching the latency budget."
+      }
+    },
+    {
+      "title": "Secret rotation auth drift",
+      "severity": "SEV2",
+      "failure_bucket": "auth-regression",
+      "passed_checks": 8,
+      "total_checks": 8,
+      "report": {
+        "summary": "payments api is rejecting traffic after an auth or secret change, with 30.8% of probes failing immediately."
+      }
+    }
+  ]
+}

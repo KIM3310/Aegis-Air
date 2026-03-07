@@ -1,0 +1,76 @@
+{
+  "incident_id": "checkout-api-dependency-outage",
+  "service_name": "checkout-api",
+  "incident_time": "2026-03-07T09:00:00Z",
+  "status_code": 500,
+  "severity": "SEV1",
+  "failure_bucket": "dependency-outage",
+  "confidence": 0.86,
+  "summary": "checkout api is failing because a required dependency is unavailable, causing a 42.9% error rate across 14 probes.",
+  "primary_hypothesis": "A hard dependency outage is breaking request completion on the critical path.",
+  "supporting_evidence": [
+    "Observed error rate: 42.9% across 14 probes.",
+    "Observed p95 latency: 460 ms with 1 latency spike.",
+    "Representative failure: Database connection lost to postgres-primary during checkout commit.",
+    "Probe evidence: database connection lost to postgres-primary"
+  ],
+  "counter_signals": [
+    "8 probes still succeeded, so the outage is partial rather than total."
+  ],
+  "immediate_actions": [
+    "Restore database connectivity or fail traffic over to a healthy dependency replica.",
+    "Roll back recent dependency changes before widening blast radius.",
+    "Throttle or queue new checkout attempts until the dependency recovers."
+  ],
+  "operator_questions": [
+    "Did a database or network change precede the first failing probe?",
+    "Are adjacent services failing against the same dependency?"
+  ],
+  "timeline": [
+    {
+      "phase": "Detect",
+      "detail": "2026-03-07T09:00:00Z: elevated failure signals observed across 14 probes."
+    },
+    {
+      "phase": "Scope",
+      "detail": "Current bucket is dependency-outage with p95 latency 460 ms."
+    },
+    {
+      "phase": "Act",
+      "detail": "Restore database connectivity or fail traffic over to a healthy dependency replica."
+    }
+  ],
+  "metrics": {
+    "sample_size": 14,
+    "success_count": 8,
+    "error_count": 6,
+    "error_rate": 0.429,
+    "p95_latency_ms": 460,
+    "latency_spike_count": 1
+  },
+  "probe_observations": [
+    {
+      "probe": 1,
+      "outcome": "success",
+      "status_code": 200,
+      "latency_ms": 82,
+      "detail": "baseline success before dependency failure"
+    },
+    {
+      "probe": 2,
+      "outcome": "error",
+      "status_code": 500,
+      "latency_ms": 190,
+      "detail": "database connection lost to postgres-primary"
+    },
+    {
+      "probe": 3,
+      "outcome": "error",
+      "status_code": 500,
+      "latency_ms": 205,
+      "detail": "checkout transaction failed after dependency disconnect"
+    }
+  ],
+  "narrative_source": "deterministic-local",
+  "rca_report": "[Summary] checkout api is failing because a required dependency is unavailable, causing a 42.9% error rate across 14 probes.\n[Severity] SEV1 | [Bucket] dependency-outage | [Confidence] 0.86\n[Primary Hypothesis] A hard dependency outage is breaking request completion on the critical path.\n[Supporting Evidence]\n- Observed error rate: 42.9% across 14 probes.\n- Observed p95 latency: 460 ms with 1 latency spike.\n- Representative failure: Database connection lost to postgres-primary during checkout commit.\n- Probe evidence: database connection lost to postgres-primary\n[Immediate Actions]\n- Restore database connectivity or fail traffic over to a healthy dependency replica.\n- Roll back recent dependency changes before widening blast radius.\n- Throttle or queue new checkout attempts until the dependency recovers."
+}
