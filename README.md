@@ -1,80 +1,118 @@
-# 🛡️ Aegis-Air: Zero-Trust Autonomous SRE Platform
+# Aegis-Air
 
-**Aegis-Air** is an enterprise-grade, privacy-first (Zero-Trust) Site Reliability Engineering (SRE) platform. It intercepts application outages and alerts, analyzes raw telemetry data using a fully air-gapped local Large Language Model (LLM), and auto-generates structured Root Cause Analysis (RCA) reports—without ever exposing sensitive enterprise logs to external public APIs like OpenAI.
+Aegis-Air is a zero-trust incident review system for teams that cannot send production telemetry to public APIs. It probes a target service, classifies the incident locally, and emits a structured RCA with severity, failure bucket, evidence, and immediate actions. The repo also includes a checked-in replay suite so changes can be scored against fixed incidents instead of judged on a single demo path.
 
-Designed by **Doeon Kim (Full-Cycle AI Engineer)**, this project demonstrates extreme proficiency in **Cloud Infrastructure (Terraform/AWS)**, **Observability (Datadog/Prometheus)**, **Edge AI (Local LLM via Ollama)**, and **Real-Time Web Dashboards (FastAPI + Server-Sent Events)**.
+## Why this repo is stronger than a one-off demo
 
----
+- Live probe loop: the engine samples a target API, captures probe evidence, and streams a structured incident report back to the console.
+- Deterministic fallback: if Ollama is unavailable, the RCA still completes locally from grounded heuristics instead of failing open.
+- Replay evals: four checked-in incidents cover four failure buckets with `32/32` rubric checks.
+- Structured output: `/api/incidents/report` and `/webhook/alert` return machine-readable reports, not just raw text.
+- Operator-facing UI: the frontend surfaces severity, failure bucket, confidence, evidence, actions, and replay quality signals in one screen.
 
-## 🎯 Architecture Overview
+## Architecture
 
-1. **The Target (E-Commerce API)**: A dummy FastAPI backend running on port 8000.
-2. **The Zero-Trust AI Engine (Aegis Engine)**: A localized FastAPI server on port 8001 that securely formats incident logs and queries an offline `phi3` LLM via Ollama. 
-3. **The Ops Console (Glassmorphic Web Dashboard)**: A stunning Cyberpunk/SRE-themed web UI served directly from the Aegis Engine. It allows users to manually trigger *Chaos Engineering* simulations and watch the local AI generate the RCA report in real-time via Server-Sent Events (SSE).
-4. **The Enterprise Proof (Terraform IaC)**: Found in `/infrastructure/aws`, these scripts prove the capability to deploy this exact architecture into an AWS production environment.
+1. `app/main.py`
+   - Dummy e-commerce API with injected checkout failures and Prometheus metrics.
+2. `aegis_engine/main.py`
+   - FastAPI engine that runs the live probe loop, serves the frontend, and exposes replay/eval endpoints.
+3. `aegis_engine/replay_evals.py`
+   - Checked-in replay cases, failure taxonomy, structured RCA builder, and rubric scoring.
+4. `frontend/*`
+   - Local ops console for live incident review and replay suite visibility.
+5. `infrastructure/aws/*`
+   - Terraform drafts showing how the pattern could be deployed into AWS.
 
----
+## Replay Suite
 
-## 🚀 Quick Start (Local Sandbox)
+The replay suite currently covers four buckets:
 
-The entire sandbox runs natively on macOS to maximize system performance for local Edge AI inference. No Docker required.
+- `dependency-outage`
+- `dependency-timeout`
+- `latency-saturation`
+- `auth-regression`
 
-### 1. Prerequisites
-- Python 3.11+
-- `ollama` installed via Homebrew (`brew install ollama`)
-- Phi-3 model pulled (`ollama pull phi3`)
+Current checked-in result:
 
-### 2. Setup
+- `4` cases
+- `32/32` rubric checks passed
+- `100%` severity accuracy
+- `100%` failure-bucket accuracy
+- `100%` taxonomy coverage
+
+Run it locally:
+
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+python scripts/run_replay_suite.py
 ```
 
-### 3. Run the Sandbox
-Open two separate terminal tabs. Ensure your virtual environment is activated in each.
+More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 
-**Terminal 1 (The Victim Target API):**
+## API surface
+
+- `GET /health`
+- `GET /api/meta`
+- `GET /api/chaos/trigger`
+- `POST /api/incidents/report`
+- `POST /webhook/alert`
+- `GET /api/replays`
+- `GET /api/evals/replays`
+
+Example response from `POST /api/incidents/report`:
+
+```json
+{
+  "status": "success",
+  "report": {
+    "severity": "SEV1",
+    "failure_bucket": "dependency-outage",
+    "summary": "checkout api is failing because a required dependency is unavailable...",
+    "supporting_evidence": [
+      "Observed error rate: 42.9% across 14 probes.",
+      "Representative failure: Database connection lost to postgres-primary during checkout commit."
+    ],
+    "immediate_actions": [
+      "Restore database connectivity or fail traffic over to a healthy dependency replica.",
+      "Roll back recent dependency changes before widening blast radius."
+    ]
+  }
+}
+```
+
+## Quick start
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt -r requirements-dev.txt
+```
+
+Terminal 1:
+
 ```bash
 uvicorn app.main:app --port 8000
 ```
 
-**Terminal 2 (The Zero-Trust AI Engine + Ops Console):**
+Terminal 2:
+
 ```bash
 uvicorn aegis_engine.main:app --port 8001
 ```
 
-### 4. Experience the Ops Console:
-1. Open your browser and navigate to: **http://localhost:8001**
-2. You will see the Aegis-Air Ops Console.
-3. Click the red **"UNLEASH CHAOS"** button.
-4. Watch the terminal feed on the right side of the screen as the system bombards the target API, detects a Database outage, and streams the Local LLM's Root Cause Analysis back to the UI in real-time.
+Then open:
 
----
+- `http://127.0.0.1:8001`
 
-## ☁️ Enterprise Cloud Deployment (AWS)
+## Verification
 
-To deploy the production-ready cluster using Terraform:
 ```bash
-cd infrastructure/aws
-terraform init
-terraform plan
-terraform apply
-```
-
-<!-- codex:local-verification:start -->
-## Local Verification
-```bash
-/Library/Developer/CommandLineTools/usr/bin/python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -U pip
-python -m pip install -r requirements.txt
 python -m compileall -q .
+pytest -q
+python scripts/run_replay_suite.py
 ```
 
-## Repository Hygiene
-- Keep runtime artifacts out of commits (`.codex_runs/`, cache folders, temporary venvs).
-- Prefer running verification commands above before opening a PR.
+## Notes
 
-_Last updated: 2026-03-04_
-<!-- codex:local-verification:end -->
+- The live console is useful for a local walkthrough, but the replay suite is the main quality signal in the repo.
+- `chaos_engine/chaos_mesh.py` remains as a CLI driver and now receives a real `rca_report` from `/webhook/alert`.
+- Ollama is optional for the narrative stream. The structured report path does not depend on it.
