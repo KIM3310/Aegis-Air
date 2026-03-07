@@ -1,14 +1,14 @@
 # Aegis-Air
 
-Aegis-Air is a zero-trust incident review system for teams that cannot send production telemetry to public APIs. It probes a target service, classifies the incident locally, and emits a structured RCA with severity, failure bucket, evidence, and immediate actions. The repo also includes a checked-in replay suite so changes can be scored against fixed incidents instead of judged on a single demo path.
+Aegis-Air is a local incident review system for teams that cannot send production telemetry to public APIs. It probes a target service, classifies the incident locally, and returns a structured RCA with severity, failure bucket, evidence, and immediate actions. The repo also includes replay cases for regression testing.
 
-## Why this repo is stronger than a one-off demo
+## What it includes
 
-- Live probe loop: the engine samples a target API, captures probe evidence, and streams a structured incident report back to the console.
-- Deterministic fallback: if Ollama is unavailable, the RCA still completes locally from grounded heuristics instead of failing open.
-- Replay evals: four checked-in incidents cover four failure buckets with `32/32` rubric checks.
-- Structured output: `/api/incidents/report` and `/webhook/alert` return machine-readable reports, not just raw text.
-- Operator-facing UI: the frontend surfaces severity, failure bucket, confidence, evidence, actions, and replay quality signals in one screen.
+- Live probe loop against a target API
+- Local RCA generation with an Ollama-backed narrative stream
+- Replay cases that cover four failure buckets with `32/32` rubric checks
+- Structured output from `/api/incidents/report` and `/webhook/alert`
+- Local console that shows severity, failure bucket, confidence, evidence, actions, and replay results
 
 ## Architecture
 
@@ -17,7 +17,7 @@ Aegis-Air is a zero-trust incident review system for teams that cannot send prod
 2. `aegis_engine/main.py`
    - FastAPI engine that runs the live probe loop, serves the frontend, and exposes replay/eval endpoints.
 3. `aegis_engine/replay_evals.py`
-   - Checked-in replay cases, failure taxonomy, structured RCA builder, and rubric scoring.
+   - Replay cases, failure taxonomy, structured RCA builder, and rubric scoring.
 4. `frontend/*`
    - Local ops console for live incident review and replay suite visibility.
 5. `infrastructure/aws/*`
@@ -32,7 +32,7 @@ The replay suite currently covers four buckets:
 - `latency-saturation`
 - `auth-regression`
 
-Current checked-in result:
+Current replay result:
 
 - `4` cases
 - `32/32` rubric checks passed
@@ -113,6 +113,5 @@ python scripts/run_replay_suite.py
 
 ## Notes
 
-- The live console is useful for a local walkthrough, but the replay suite is the main quality signal in the repo.
 - `chaos_engine/chaos_mesh.py` remains as a CLI driver and now receives a real `rca_report` from `/webhook/alert`.
-- Ollama is optional for the narrative stream. The structured report path does not depend on it.
+- Ollama is optional for the narrative stream. The structured report path still works without it.

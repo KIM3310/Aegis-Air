@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderReplaySuite(data) {
         const summary = data.summary || {};
-        replayRefreshState.textContent = 'Checked-in';
+        replayRefreshState.textContent = 'Loaded';
         replayScore.textContent = `${summary.score_pct || 0}%`;
         replayChecks.textContent = `${summary.passed_checks || 0}/${summary.total_checks || 0}`;
         replaySeverityAccuracy.textContent = `${summary.severity_accuracy_pct || 0}%`;
@@ -103,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderReplaySuite(data);
         } catch (error) {
             replayRefreshState.textContent = 'Unavailable';
-            replayCases.innerHTML = '<div class="empty-state">Replay suite could not be loaded.</div>';
+            replayCases.innerHTML = '<div class="empty-state">Replay cases could not be loaded.</div>';
             appendToTerminal(`[Error] Failed to load replay suite: ${error.message}`, 'critical');
         }
     }
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (data.type === 'report') {
                 currentLine = null;
-                renderReport(data.content, 'Live probe loop');
+                renderReport(data.content, 'Live probe');
                 updateStatus('danger', 'INCIDENT REVIEWED');
                 appendToTerminal('[System] Structured report published to the incident panel.', 'system');
                 return;

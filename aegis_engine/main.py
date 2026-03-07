@@ -55,9 +55,9 @@ def build_engine_diagnostics() -> dict[str, Any]:
         "replay_eval_ready": True,
         "live_loop_ready": target_api_configured,
         "next_action": (
-            "Trigger /api/chaos/trigger for a live probe loop or review /api/evals/replays for checked-in incidents."
+            "Trigger /api/chaos/trigger for a live probe loop or review /api/evals/replays for replay cases."
             if target_api_configured
-            else "Configure AEGIS_AIR_TARGET_API_URL to probe a live service. Replay evals remain available."
+            else "Configure AEGIS_AIR_TARGET_API_URL to probe a live service. Replay cases remain available."
         ),
     }
 
