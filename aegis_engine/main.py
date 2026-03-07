@@ -17,7 +17,7 @@ from pydantic import BaseModel
 
 from aegis_engine.replay_evals import build_replay_metadata, build_structured_report, run_replay_suite
 
-app = FastAPI(title="Aegis-Air Engine", description="Zero-Trust LLM SRE RCA Generator")
+app = FastAPI(title="Aegis-Air Engine", description="Local incident review engine for structured RCA")
 
 app.add_middleware(
     CORSMiddleware,

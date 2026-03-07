@@ -7,7 +7,7 @@ Aegis-Air is a local incident review system for teams that cannot send productio
 - GitHub: https://github.com/KIM3310/Aegis-Air
 - Live demo: https://aegis-air.pages.dev
 
-The Pages deployment uses recorded review data when the local FastAPI engine is not present, so the replay console and incident review flow stay usable without a paid backend.
+The Pages deployment uses recorded review data when the local FastAPI engine is not present, so the replay console and incident review flow stay usable without a separate backend deployment.
 
 ## What it includes
 
