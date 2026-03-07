@@ -5,35 +5,34 @@ import random
 
 TARGET_API_URL = "http://localhost:8000/api/checkout"
 AEGIS_WEBHOOK_URL = "http://localhost:8001/webhook/alert"
+REQUEST_TIMEOUT_SEC = 5
 
 def simulate_chaos():
-    print("🔫 [Chaos Engine] Started: Assaulting Target E-Commerce API...")
+    print("[Chaos Engine] Starting checkout probe loop.")
     
     for i in range(1, 15):
         print(f"   [Request {i}] -> GET {TARGET_API_URL}")
         try:
             start_time = time.time()
-            response = requests.get(TARGET_API_URL, timeout=5)
+            response = requests.get(TARGET_API_URL, timeout=REQUEST_TIMEOUT_SEC)
             latency = time.time() - start_time
             
             if response.status_code == 200:
-                print(f"      ✅ Success ({latency:.2f}s) - {response.json()}")
+                print(f"      OK ({latency:.2f}s) - {response.json()}")
             elif response.status_code == 500:
-                print(f"      🚨 INCIDENT DETECTED! HTTP 500: {response.text}")
+                print(f"      INCIDENT DETECTED: HTTP 500 {response.text}")
                 trigger_incident_response(response.status_code, response.text)
                 
-                # We stop after causing one major incident and resolving it
-                print("\n🔫 [Chaos Engine] Mission Accomplished. Ceasing fire.")
+                print("\n[Chaos Engine] Stopping after the first confirmed incident.")
                 break
                 
         except requests.exceptions.RequestException as e:
-            print(f"      ❌ Connection Failed: {e}")
+            print(f"      Connection failed: {e}")
         
-        # Add slight delay between requests
         time.sleep(random.uniform(0.5, 1.5))
 
 def trigger_incident_response(status_code, error_text):
-    print("\n📡 [Monitoring Agent] Alerting Aegis-Air Zero-Trust Engine...")
+    print("\n[Monitoring Agent] Sending incident payload to Aegis-Air.")
     
     payload = {
         "service_name": "E-Commerce-Checkout-API",
@@ -43,21 +42,20 @@ def trigger_incident_response(status_code, error_text):
     }
     
     try:
-        # Fire webhook to Aegis-Engine
-        webhook_response = requests.post(AEGIS_WEBHOOK_URL, json=payload)
+        webhook_response = requests.post(AEGIS_WEBHOOK_URL, json=payload, timeout=REQUEST_TIMEOUT_SEC)
         
         if webhook_response.status_code == 200:
             result = webhook_response.json()
             display_rca(result)
         else:
-            print(f"❌ Failed to reach Aegis-Engine. Code: {webhook_response.status_code}")
+            print(f"Webhook request failed with status {webhook_response.status_code}.")
             
-    except requests.exceptions.ConnectionError:
-        print("❌ Aegis-Engine is unreachable. Is the webhook server (port 8001) running?")
+    except requests.exceptions.RequestException as exc:
+        print(f"Aegis-Air webhook is unreachable: {exc}")
 
 def display_rca(result):
     print("\n" + "="*60)
-    print("🛡️  AEGIS-AIR AUTONOMOUS RCA REPORT (ZERO-TRUST LOCAL AI) 🛡️")
+    print("AEGIS-AIR RCA REPORT")
     print("="*60)
     print(result.get("rca_report", "No report content."))
     print("="*60 + "\n")
