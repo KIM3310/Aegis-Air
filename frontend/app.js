@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const DEMO_REPLAY_URL = './demo-data/replay-suite.json';
     const DEMO_REPORT_URL = './demo-data/sample-report.json';
     const shouldAutorun = new URLSearchParams(window.location.search).get('autorun') === '1';
+    const demoDelayScale = shouldAutorun ? 0.35 : 1;
 
     let isChaosActive = false;
     let currentLine = null;
@@ -50,7 +51,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function delay(ms) {
-        return new Promise((resolve) => window.setTimeout(resolve, ms));
+        return new Promise((resolve) => window.setTimeout(resolve, Math.max(12, Math.round(ms * demoDelayScale))));
+    }
+
+    async function fetchJson(url) {
+        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+        if (!contentType.includes('application/json')) {
+            throw new Error('Expected JSON response');
+        }
+        return response.json();
     }
 
     function chunkText(text, chunkSize = 34) {
@@ -74,20 +85,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function fetchJsonWithFallback(primaryUrl, fallbackUrl) {
         try {
-            const response = await fetch(primaryUrl, { headers: { Accept: 'application/json' } });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return { data: await response.json(), source: 'live' };
+            return { data: await fetchJson(primaryUrl), source: 'live' };
         } catch (_) {
-            const fallback = await fetch(fallbackUrl, { headers: { Accept: 'application/json' } });
-            if (!fallback.ok) throw new Error(`Fallback HTTP ${fallback.status}`);
-            return { data: await fallback.json(), source: 'demo' };
+            const fallback = await fetchJson(fallbackUrl);
+            return { data: fallback, source: 'demo' };
         }
     }
 
     async function detectRuntimeMode() {
         try {
-            const response = await fetch('/api/meta', { headers: { Accept: 'application/json' } });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await fetchJson('/api/meta');
             runtimeMode = 'live';
             chaosBtn.textContent = 'RUN INCIDENT REVIEW';
             appendToTerminal('[System] Live engine detected.', 'system');
