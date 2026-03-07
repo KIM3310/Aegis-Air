@@ -24,3 +24,4 @@ nohup.out
 # Local artifacts
 media/
 .codex_runs/
+.wrangler/
