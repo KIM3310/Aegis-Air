@@ -1,6 +1,6 @@
 # Incident Replay Evals
 
-This repo includes a checked-in replay suite so incident analysis quality can be regression-tested locally.
+This repo includes replay cases so incident analysis can be regression-tested locally.
 
 ## What is being scored
 
@@ -25,7 +25,7 @@ Each case is then scored across `8` rubric checks:
 
 Across four cases, that produces `32` total rubric checks.
 
-## Checked-in scenarios
+## Replay scenarios
 
 | Case | Expected Severity | Expected Bucket | Main Signal |
 | --- | --- | --- | --- |
@@ -42,11 +42,9 @@ Across four cases, that produces `32` total rubric checks.
 - `100%` failure-bucket accuracy
 - `100%` taxonomy coverage
 
-## Why this matters
+## Use
 
-Without replay evals, a local AIOps demo can look good while regressing silently. The replay suite gives the repo a stable quality signal:
-
-- changes to heuristics remain reviewable
-- structured reports can be compared across revisions
-- failure taxonomy coverage is visible
-- reviewers can tell the project was built for repeatability, not only for screenshots
+- keep heuristic changes reviewable
+- compare structured reports across revisions
+- see which failure buckets are covered
+- catch regressions without depending on a single demo run

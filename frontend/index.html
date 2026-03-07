@@ -15,13 +15,13 @@
             <span class="shield">🛡️</span>
             <div>
                 <h1>Aegis-Air <span>Ops Console</span></h1>
-                <p class="header-copy">Zero-trust incident review with local RCA generation and replay evals.</p>
+                <p class="header-copy">Local incident analysis for private telemetry.</p>
             </div>
         </div>
         <div class="header-badges">
             <span class="badge">Local-first</span>
-            <span class="badge">Replay Evals</span>
-            <span class="badge">Air-gapped Ready</span>
+            <span class="badge">Replay Suite</span>
+            <span class="badge">Private Telemetry</span>
         </div>
     </header>
 
@@ -46,12 +46,12 @@
 
                 <div class="ops-brief">
                     <h3>Run Objective</h3>
-                    <p>Probe the target, capture failure signals, classify the incident, and emit a grounded RCA with actions that another operator can use immediately.</p>
+                    <p>Probe the target, capture failure signals, classify the incident, and return a report with evidence and immediate actions.</p>
                 </div>
 
                 <div class="chaos-controls">
                     <h3>Live Probe Loop</h3>
-                    <p>Run a short chaos-assisted probe loop against the target API. Aegis-Air will produce a structured report even if Ollama is unavailable.</p>
+                    <p>Run a short probe loop against the target API. Aegis-Air will still return a structured report if Ollama is unavailable.</p>
                     <button id="chaos-btn" class="cyber-btn">RUN INCIDENT REVIEW</button>
                 </div>
             </section>
@@ -60,7 +60,7 @@
                 <section class="panel glass-panel report-panel">
                     <div class="panel-header">
                         <h2>Latest Incident Report</h2>
-                        <span class="mini-badge" id="report-source">Awaiting run</span>
+                        <span class="mini-badge" id="report-source">No run yet</span>
                     </div>
 
                     <div class="report-metrics">
@@ -118,7 +118,7 @@
 
         <section class="panel glass-panel replay-panel">
             <div class="panel-header">
-                <h2>Checked-In Replay Suite</h2>
+                <h2>Replay Suite</h2>
                 <span class="mini-badge" id="replay-refresh-state">Loading...</span>
             </div>
 
@@ -142,7 +142,7 @@
             </div>
 
             <div class="replay-cases" id="replay-cases">
-                <div class="empty-state">Replay suite is loading.</div>
+                <div class="empty-state">Loading replay cases.</div>
             </div>
         </section>
     </main>
