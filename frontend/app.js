@@ -17,9 +17,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const replaySeverityAccuracy = document.getElementById('replay-severity-accuracy');
     const replayTaxonomy = document.getElementById('replay-taxonomy');
     const replayCases = document.getElementById('replay-cases');
+    const readinessSource = document.getElementById('readiness-source');
+    const readinessMode = document.getElementById('readiness-mode');
+    const readinessScore = document.getElementById('readiness-score');
+    const readinessSchema = document.getElementById('readiness-schema');
+    const readinessTarget = document.getElementById('readiness-target');
+    const readinessTags = document.getElementById('readiness-tags');
+    const readinessReviewFlow = document.getElementById('readiness-review-flow');
+    const readinessOperatorRules = document.getElementById('readiness-operator-rules');
+    const readinessRequiredFields = document.getElementById('readiness-required-fields');
+    const readinessWatchouts = document.getElementById('readiness-watchouts');
 
     const DEMO_REPLAY_URL = './demo-data/replay-suite.json';
     const DEMO_REPORT_URL = './demo-data/sample-report.json';
+    const DEMO_RUNTIME_BRIEF_URL = './demo-data/runtime-brief.json';
     const shouldAutorun = new URLSearchParams(window.location.search).get('autorun') === '1';
     const demoDelayScale = shouldAutorun ? 0.35 : 1;
 
@@ -42,6 +53,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const li = document.createElement('li');
             li.textContent = item;
             target.appendChild(li);
+        });
+    }
+
+    function renderTagList(target, items) {
+        target.innerHTML = '';
+        items.forEach((item) => {
+            const span = document.createElement('span');
+            span.className = 'badge';
+            span.textContent = item;
+            target.appendChild(span);
         });
     }
 
@@ -156,6 +177,39 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
             replayCases.appendChild(article);
         });
+    }
+
+    function renderRuntimeBrief(data, source) {
+        const replaySummary = data.replay_summary || {};
+        const reportContract = data.report_contract || {};
+        const targetService = data.target_service || {};
+
+        readinessSource.textContent = source === 'demo' ? 'Recorded profile' : 'Live engine';
+        readinessMode.textContent = data.mode || '--';
+        readinessScore.textContent = `${replaySummary.score_pct || 0}%`;
+        readinessSchema.textContent = reportContract.schema || '--';
+        readinessTarget.textContent = targetService.status || '--';
+
+        renderTagList(readinessTags, [
+            data.readiness_contract || 'runtime-brief',
+            `cases:${replaySummary.cases || 0}`,
+            `checks:${replaySummary.total_checks || 0}`,
+            `bucket:${replaySummary.bucket_accuracy_pct || 0}%`,
+        ]);
+        renderList(readinessReviewFlow, data.review_flow || ['No review flow available.']);
+        renderList(readinessOperatorRules, data.operator_rules || ['No operator rules available.']);
+        renderList(readinessRequiredFields, reportContract.required_fields || ['No schema fields available.']);
+        renderList(readinessWatchouts, data.watchouts || ['No watchouts available.']);
+    }
+
+    async function loadRuntimeBrief() {
+        try {
+            const { data, source } = await fetchJsonWithFallback('/api/runtime/brief', DEMO_RUNTIME_BRIEF_URL);
+            renderRuntimeBrief(data, source);
+        } catch (error) {
+            readinessSource.textContent = 'Unavailable';
+            appendToTerminal(`[Error] Failed to load runtime brief: ${error.message}`, 'critical');
+        }
     }
 
     async function loadReplaySuite() {
@@ -305,5 +359,6 @@ document.addEventListener('DOMContentLoaded', () => {
             chaosBtn.click();
         }
     });
+    loadRuntimeBrief();
     loadReplaySuite();
 });

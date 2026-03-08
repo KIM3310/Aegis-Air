@@ -7,6 +7,7 @@ import random
 import time
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 from fastapi import FastAPI
@@ -59,6 +60,136 @@ def build_engine_diagnostics() -> dict[str, Any]:
             if target_api_configured
             else "Configure AEGIS_AIR_TARGET_API_URL to probe a live service. Replay cases remain available."
         ),
+    }
+
+
+def build_incident_report_schema() -> dict[str, Any]:
+    return {
+        "schema": "aegis-air-incident-report-v1",
+        "version": 1,
+        "required_fields": [
+            "severity",
+            "failure_bucket",
+            "summary",
+            "primary_hypothesis",
+            "supporting_evidence",
+            "immediate_actions",
+            "operator_questions",
+            "timeline",
+            "metrics",
+            "probe_observations",
+            "rca_report",
+        ],
+        "delivery_modes": ["live-probe", "webhook-alert", "recorded-review"],
+        "operator_rules": [
+            "Keep the structured report valid even when Ollama is unavailable.",
+            "Separate deterministic evidence from optional narrative generation.",
+            "Never claim live target readiness unless the target service meta is reachable.",
+        ],
+    }
+
+
+def _derive_target_meta_url(target_api_url: str) -> str | None:
+    parsed = urlsplit(target_api_url)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return urlunsplit((parsed.scheme, parsed.netloc, "/meta", "", ""))
+
+
+async def _fetch_target_service_meta() -> dict[str, Any]:
+    meta_url = _derive_target_meta_url(TARGET_API_URL)
+    if not meta_url:
+        return {
+            "status": "unavailable",
+            "meta_url": None,
+            "reason": "target-api-url-not-configured",
+        }
+
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            response = await client.get(meta_url)
+            response.raise_for_status()
+            payload = response.json()
+    except (httpx.HTTPError, ValueError, OSError) as exc:
+        return {
+            "status": "unavailable",
+            "meta_url": meta_url,
+            "reason": f"target-meta-unreachable:{type(exc).__name__}",
+        }
+
+    return {
+        "status": "ok",
+        "meta_url": meta_url,
+        "service": payload.get("service", "unknown"),
+        "chaos_profile": payload.get("chaos_profile", {}),
+        "diagnostics": payload.get("diagnostics", {}),
+        "ops_contract": payload.get("ops_contract", {}),
+        "routes": payload.get("routes", []),
+    }
+
+
+async def build_runtime_brief() -> dict[str, Any]:
+    replay_suite = run_replay_suite()
+    target_service = await _fetch_target_service_meta()
+
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "headline": "Air-gapped incident review engine with deterministic replay evidence and local-first operator handoff.",
+        "readiness_contract": "aegis-air-runtime-brief-v1",
+        "mode": "air-gapped-local-first",
+        "generated_at": _utc_now(),
+        "diagnostics": build_engine_diagnostics(),
+        "report_contract": build_incident_report_schema(),
+        "replay_summary": replay_suite["summary"],
+        "evidence_counts": {
+            "replay_cases": replay_suite["summary"]["cases"],
+            "rubric_checks": replay_suite["summary"]["total_checks"],
+            "frontend_surfaces": 4,
+            "api_routes": 9,
+        },
+        "trust_boundary": [
+            "telemetry stays local to the operator environment",
+            "structured RCA is deterministic even without Ollama",
+            "replay suite acts as a regression gate before deployment",
+            "target service health is optional and explicitly surfaced as reachable/unreachable",
+        ],
+        "review_flow": [
+            "Open /health to confirm live-loop readiness and review links.",
+            "Read /api/runtime/brief for trust boundary, replay score, and target reachability.",
+            "Use the local console to run a live or recorded incident review.",
+            "Validate the schema at /api/schema/report before integrating downstream handoff flows.",
+        ],
+        "operator_rules": [
+            "Treat replay score and live probe evidence as separate signals.",
+            "Do not block incident reporting on the local narrative model.",
+            "Prefer structured RCA sections over free-form prose during handoff.",
+        ],
+        "watchouts": [
+            "The default target API is a local demo service, not a production dependency.",
+            "Frontend Pages mode can only show recorded review data when the engine is absent.",
+            "Narrative streaming is optional; the schema-backed report is the source of truth.",
+        ],
+        "artifacts": [
+            {"label": "Engine Meta", "href": "/api/meta", "kind": "route"},
+            {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
+            {"label": "Incident Schema", "href": "/api/schema/report", "kind": "route"},
+            {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
+            {"label": "Replay Eval Docs", "href": "docs/INCIDENT_REPLAY_EVALS.md", "kind": "doc"},
+            {"label": "Replay Suite Runner", "href": "scripts/run_replay_suite.py", "kind": "script"},
+        ],
+        "target_service": target_service,
+        "routes": [
+            "/health",
+            "/api/meta",
+            "/api/runtime/brief",
+            "/api/schema/report",
+            "/api/chaos/trigger",
+            "/api/incidents/report",
+            "/api/replays",
+            "/api/evals/replays",
+            "/webhook/alert",
+        ],
     }
 
 
@@ -246,6 +377,21 @@ def replay_eval_summary() -> dict[str, Any]:
     }
 
 
+@app.get("/api/schema/report")
+def report_schema() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        **build_incident_report_schema(),
+    }
+
+
+@app.get("/api/runtime/brief")
+async def runtime_brief() -> dict[str, Any]:
+    return await build_runtime_brief()
+
+
 @app.get("/api/meta")
 def engine_meta() -> dict[str, Any]:
     return {
@@ -256,6 +402,7 @@ def engine_meta() -> dict[str, Any]:
         "ollama_url": OLLAMA_URL,
         "target_api_url": TARGET_API_URL,
         "diagnostics": build_engine_diagnostics(),
+        "report_contract": build_incident_report_schema(),
         "ops_contract": {
             "schema": "ops-envelope-v1",
             "version": 2,
@@ -265,12 +412,16 @@ def engine_meta() -> dict[str, Any]:
             "chaos-trigger",
             "structured-incident-report",
             "replay-evals",
+            "runtime-brief",
+            "report-schema",
             "webhook-alert-ingest",
             "static-frontend-mount",
         ],
         "routes": [
             "/health",
             "/api/meta",
+            "/api/runtime/brief",
+            "/api/schema/report",
             "/api/chaos/trigger",
             "/api/incidents/report",
             "/api/replays",
@@ -287,6 +438,7 @@ def health_check() -> dict[str, Any]:
         "service": "aegis-air-engine",
         "message": "Aegis-Air engine online. Zero-trust mode active.",
         "diagnostics": build_engine_diagnostics(),
+        "capabilities": ["runtime-brief-surface", "report-schema-surface", "replay-eval-surface"],
         "ops_contract": {
             "schema": "ops-envelope-v1",
             "version": 2,
@@ -294,6 +446,8 @@ def health_check() -> dict[str, Any]:
         },
         "links": {
             "meta": "/api/meta",
+            "runtime_brief": "/api/runtime/brief",
+            "report_schema": "/api/schema/report",
             "chaos_trigger": "/api/chaos/trigger",
             "replay_evals": "/api/evals/replays",
         },

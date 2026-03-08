@@ -67,11 +67,22 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 
 - `GET /health`
 - `GET /api/meta`
+- `GET /api/runtime/brief`
+- `GET /api/schema/report`
 - `GET /api/chaos/trigger`
 - `POST /api/incidents/report`
 - `POST /webhook/alert`
 - `GET /api/replays`
 - `GET /api/evals/replays`
+
+## Service-grade surfaces
+
+- `GET /api/runtime/brief`
+  - local-first readiness contract, replay score, trust boundary, target reachability
+- `GET /api/schema/report`
+  - downstream contract for structured incident handoff
+- frontend `Local-First Readiness`
+  - review flow, operator rules, schema fields, current watchouts
 
 Example response from `POST /api/incidents/report`:
 

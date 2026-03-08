@@ -28,12 +28,17 @@ def test_engine_health_and_meta():
 
     health = client.get("/health")
     meta = client.get("/api/meta")
+    runtime_brief = client.get("/api/runtime/brief")
+    schema = client.get("/api/schema/report")
 
     assert health.status_code == 200
     assert health.json()["service"] == "aegis-air-engine"
     assert health.json()["links"]["meta"] == "/api/meta"
+    assert health.json()["links"]["runtime_brief"] == "/api/runtime/brief"
+    assert health.json()["links"]["report_schema"] == "/api/schema/report"
     assert health.json()["diagnostics"]["live_loop_ready"] is True
     assert health.json()["diagnostics"]["replay_eval_ready"] is True
+    assert "runtime-brief-surface" in health.json()["capabilities"]
     assert health.json()["ops_contract"]["schema"] == "ops-envelope-v1"
     assert "next_action" in health.json()["diagnostics"]
     assert health.json()["links"]["replay_evals"] == "/api/evals/replays"
@@ -44,9 +49,27 @@ def test_engine_health_and_meta():
     assert body["status"] == "ok"
     assert body["model"] == "phi3"
     assert body["diagnostics"]["llm_mode"] == "local-ollama-with-deterministic-fallback"
+    assert body["report_contract"]["schema"] == "aegis-air-incident-report-v1"
     assert "/api/chaos/trigger" in body["routes"]
     assert "/api/evals/replays" in body["routes"]
     assert "/api/incidents/report" in body["routes"]
+    assert "/api/runtime/brief" in body["routes"]
+    assert "/api/schema/report" in body["routes"]
+
+    assert runtime_brief.status_code == 200
+    brief = runtime_brief.json()
+    assert brief["service"] == "aegis-air-engine"
+    assert brief["readiness_contract"] == "aegis-air-runtime-brief-v1"
+    assert brief["report_contract"]["schema"] == "aegis-air-incident-report-v1"
+    assert brief["replay_summary"]["cases"] == 4
+    assert isinstance(brief["review_flow"], list)
+    assert isinstance(brief["target_service"], dict)
+
+    assert schema.status_code == 200
+    schema_body = schema.json()
+    assert schema_body["schema"] == "aegis-air-incident-report-v1"
+    assert "summary" in schema_body["required_fields"]
+    assert "live-probe" in schema_body["delivery_modes"]
 
 
 def test_store_api_health_and_meta():
