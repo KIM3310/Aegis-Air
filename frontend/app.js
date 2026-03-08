@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewPackDelivery = document.getElementById('reviewpack-delivery');
     const copyReviewPathBtn = document.getElementById('copy-review-path-btn');
     const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
+    const copyTopReplayBtn = document.getElementById('copy-top-replay-btn');
     const loadReplayBtn = document.getElementById('load-replay-btn');
 
     const DEMO_REPLAY_URL = './demo-data/replay-suite.json';
@@ -371,6 +372,40 @@ document.addEventListener('DOMContentLoaded', () => {
         flashButtonLabel(loadReplayBtn, 'Load Top Replay', 'Loaded');
     }
 
+    async function copyTopReplaySummary() {
+        const topCase = latestReplaySuite?.runs?.[0];
+        if (!topCase) {
+            flashButtonLabel(copyTopReplayBtn, 'Copy Top Replay', 'Unavailable');
+            return;
+        }
+
+        const report = topCase.report || {};
+        const evidence = Array.isArray(report.supporting_evidence) ? report.supporting_evidence : [];
+        const actions = Array.isArray(report.immediate_actions) ? report.immediate_actions : [];
+        const text = [
+            'Aegis-Air top replay summary',
+            `Title: ${topCase.title || '-'}`,
+            `Severity: ${topCase.severity || report.severity || '-'}`,
+            `Failure bucket: ${topCase.failure_bucket || report.failure_bucket || '-'}`,
+            `Checks: ${topCase.passed_checks || 0}/${topCase.total_checks || 0}`,
+            `Summary: ${report.summary || 'No summary available.'}`,
+            '',
+            'Evidence',
+            ...(evidence.length > 0 ? evidence.map((item) => `- ${item}`) : ['- No evidence captured.']),
+            '',
+            'Actions',
+            ...(actions.length > 0 ? actions.map((item) => `- ${item}`) : ['- No actions generated.']),
+        ].join('\n');
+
+        try {
+            await copyTextToClipboard(text);
+            flashButtonLabel(copyTopReplayBtn, 'Copy Top Replay', 'Copied');
+        } catch (error) {
+            console.warn('copy top replay failed', error);
+            flashButtonLabel(copyTopReplayBtn, 'Copy Top Replay', 'Copy failed');
+        }
+    }
+
     async function loadRuntimeBrief() {
         try {
             const { data, source } = await fetchJsonWithFallback('/api/runtime/brief', DEMO_RUNTIME_BRIEF_URL);
@@ -552,5 +587,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadReplaySuite();
     copyReviewPathBtn.addEventListener('click', copyReviewPath);
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
+    copyTopReplayBtn.addEventListener('click', copyTopReplaySummary);
     loadReplayBtn.addEventListener('click', loadTopReplayCase);
 });
