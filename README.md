@@ -2,6 +2,14 @@
 
 Aegis-Air is a local incident review system for teams that cannot send production telemetry to public APIs. It probes a target service, classifies the incident locally, and returns a structured RCA with severity, failure bucket, evidence, and immediate actions. The repo also includes replay cases for regression testing.
 
+## Product Family
+
+Aegis-Air is the local-first / air-gapped engine in the broader `Aegis` incident-analysis product family.
+
+Companion repo:
+
+- `AegisOps`: multimodal SEV1 incident copilot for screenshot + log driven incident reporting and operator handoff
+
 ## Demo / Links
 
 - GitHub: https://github.com/KIM3310/Aegis-Air
