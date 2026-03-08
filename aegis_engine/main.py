@@ -160,6 +160,12 @@ async def build_runtime_brief() -> dict[str, Any]:
             "Use the local console to run a live or recorded incident review.",
             "Validate the schema at /api/schema/report before integrating downstream handoff flows.",
         ],
+        "two_minute_review": [
+            "Open /health to confirm whether the target meta surface is actually reachable.",
+            "Read /api/runtime/brief for replay score, trust boundary, and watchouts.",
+            "Read /api/review-pack for delivery modes and downstream handoff contract.",
+            "Open /api/evals/replays to verify replay evidence before claiming live-loop readiness.",
+        ],
         "operator_rules": [
             "Treat replay score and live probe evidence as separate signals.",
             "Do not block incident reporting on the local narrative model.",
@@ -177,6 +183,12 @@ async def build_runtime_brief() -> dict[str, Any]:
             {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
             {"label": "Replay Eval Docs", "href": "docs/INCIDENT_REPLAY_EVALS.md", "kind": "doc"},
             {"label": "Replay Suite Runner", "href": "scripts/run_replay_suite.py", "kind": "script"},
+        ],
+        "proof_assets": [
+            {"label": "Health Surface", "href": "/health", "kind": "route"},
+            {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
+            {"label": "Review Pack", "href": "/api/review-pack", "kind": "route"},
+            {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
         ],
         "target_service": target_service,
         "routes": [
@@ -235,7 +247,9 @@ async def build_review_pack() -> dict[str, Any]:
             "Read /api/review-pack for downstream handoff contract and review endpoints.",
             "Run live or recorded incident review only after schema and replay evidence align.",
         ],
+        "two_minute_review": runtime_brief["two_minute_review"],
         "artifacts": runtime_brief["artifacts"],
+        "proof_assets": runtime_brief["proof_assets"],
         "watchouts": runtime_brief["watchouts"],
         "links": {
             "health": "/health",

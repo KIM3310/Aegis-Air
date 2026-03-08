@@ -87,6 +87,20 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 - frontend `Local-First Readiness`
   - review flow, operator rules, schema fields, current watchouts
 
+## 2-Minute Review Path
+
+1. Open `/health` to confirm whether target meta is reachable or still demo-only.
+2. Read `/api/runtime/brief` for replay score, trust boundary, and watchouts.
+3. Read `/api/review-pack` for delivery modes, proof assets, and downstream handoff contract.
+4. Open `/api/evals/replays` before claiming live-loop readiness.
+
+## Proof Assets
+
+- `/health`
+- `/api/runtime/brief`
+- `/api/review-pack`
+- `/api/evals/replays`
+
 Example response from `POST /api/incidents/report`:
 
 ```json
