@@ -26,6 +26,61 @@
     </header>
 
     <main class="dashboard-shell">
+        <section class="panel glass-panel readiness-panel">
+            <div class="panel-header">
+                <h2>Local-First Readiness</h2>
+                <span class="mini-badge" id="readiness-source">Loading...</span>
+            </div>
+
+            <div class="readiness-summary-grid">
+                <div class="summary-card">
+                    <span class="label">Mode</span>
+                    <strong id="readiness-mode">--</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Replay Score</span>
+                    <strong id="readiness-score">--</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Report Schema</span>
+                    <strong id="readiness-schema">--</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Target Reachability</span>
+                    <strong id="readiness-target">--</strong>
+                </div>
+            </div>
+
+            <div class="readiness-tags" id="readiness-tags"></div>
+
+            <div class="readiness-grid">
+                <div class="report-block">
+                    <span class="section-label">Review Flow</span>
+                    <ul id="readiness-review-flow" class="detail-list">
+                        <li>Loading service brief.</li>
+                    </ul>
+                </div>
+                <div class="report-block">
+                    <span class="section-label">Operator Rules</span>
+                    <ul id="readiness-operator-rules" class="detail-list">
+                        <li>Loading operator rules.</li>
+                    </ul>
+                </div>
+                <div class="report-block">
+                    <span class="section-label">Report Contract</span>
+                    <ul id="readiness-required-fields" class="detail-list">
+                        <li>Loading required fields.</li>
+                    </ul>
+                </div>
+                <div class="report-block">
+                    <span class="section-label">Current Watchouts</span>
+                    <ul id="readiness-watchouts" class="detail-list">
+                        <li>Loading watchouts.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
         <section class="dashboard-grid">
             <section class="panel glass-panel control-panel">
                 <div class="panel-header">

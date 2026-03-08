@@ -378,6 +378,30 @@ body {
     padding-bottom: 0.5rem;
 }
 
+.readiness-panel {
+    padding-bottom: 0.5rem;
+}
+
+.readiness-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.9rem;
+    padding: 1.25rem 1.35rem 0;
+}
+
+.readiness-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    padding: 1rem 1.35rem 0;
+}
+
+.readiness-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+}
+
 .replay-summary-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -432,6 +456,8 @@ body {
     }
 
     .analysis-stack,
+    .readiness-summary-grid,
+    .readiness-grid,
     .replay-summary-grid,
     .replay-cases,
     .report-grid,
@@ -457,5 +483,9 @@ body {
 
     .metrics {
         grid-template-columns: 1fr;
+    }
+
+    .readiness-tags {
+        padding-top: 0.8rem;
     }
 }
