@@ -229,7 +229,9 @@ document.addEventListener('DOMContentLoaded', () => {
             handoff_contract: {
                 delivery_modes: reportContract.delivery_modes || [],
             },
+            two_minute_review: data.two_minute_review || [],
             artifacts: data.artifacts || [],
+            proof_assets: data.proof_assets || [],
             review_sequence: [
                 'Confirm /health and /api/meta before claiming live target readiness.',
                 'Read /api/runtime/brief for replay score and trust boundary.',
@@ -243,15 +245,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetBoundary = data.target_boundary || {};
         const handoffContract = data.handoff_contract || {};
         const artifacts = data.artifacts || [];
+        const proofAssets = data.proof_assets || [];
+        const twoMinuteReview = data.two_minute_review || [];
 
         reviewPackHeadline.textContent = data.headline || 'No reviewer pack headline available.';
         reviewPackProof.textContent = `${proofBundle.score_pct || 0}% / ${proofBundle.rubric_checks || 0} checks`;
         reviewPackTarget.textContent = `${targetBoundary.status || '--'} · ${targetBoundary.service || '--'}`;
         renderList(
             reviewPackArtifacts,
-            artifacts.map((item) => `${item.label} -> ${item.href || item.path || '-'}`)
+            [
+                ...proofAssets.map((item) => `[Proof] ${item.label} -> ${item.href || item.path || '-'}`),
+                ...artifacts.map((item) => `${item.label} -> ${item.href || item.path || '-'}`),
+            ]
         );
-        renderList(reviewPackSequence, data.review_sequence || ['No review sequence available.']);
+        renderList(
+            reviewPackSequence,
+            [
+                ...twoMinuteReview.map((item) => `2-minute: ${item}`),
+                ...(data.review_sequence || []),
+            ]
+        );
         renderList(reviewPackDelivery, handoffContract.delivery_modes || ['No delivery modes available.']);
     }
 

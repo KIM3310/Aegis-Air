@@ -75,6 +75,8 @@ def test_engine_health_and_meta():
     assert pack["handoff_contract"]["schema"] == "aegis-air-incident-report-v1"
     assert "/api/review-pack" in pack["proof_bundle"]["review_endpoints"]
     assert isinstance(pack["review_sequence"], list)
+    assert len(pack["two_minute_review"]) == 4
+    assert pack["proof_assets"][0]["href"] == "/health"
 
     assert schema.status_code == 200
     schema_body = schema.json()
