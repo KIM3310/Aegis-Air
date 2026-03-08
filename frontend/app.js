@@ -27,6 +27,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const readinessOperatorRules = document.getElementById('readiness-operator-rules');
     const readinessRequiredFields = document.getElementById('readiness-required-fields');
     const readinessWatchouts = document.getElementById('readiness-watchouts');
+    const reviewPackHeadline = document.getElementById('reviewpack-headline');
+    const reviewPackProof = document.getElementById('reviewpack-proof');
+    const reviewPackTarget = document.getElementById('reviewpack-target');
+    const reviewPackArtifacts = document.getElementById('reviewpack-artifacts');
+    const reviewPackSequence = document.getElementById('reviewpack-sequence');
+    const reviewPackDelivery = document.getElementById('reviewpack-delivery');
 
     const DEMO_REPLAY_URL = './demo-data/replay-suite.json';
     const DEMO_REPORT_URL = './demo-data/sample-report.json';
@@ -37,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isChaosActive = false;
     let currentLine = null;
     let runtimeMode = 'checking';
+    let latestRuntimeBrief = null;
 
     function appendToTerminal(text, type = 'system') {
         const div = document.createElement('div');
@@ -48,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderList(target, items) {
+        if (!target) return;
         target.innerHTML = '';
         items.forEach((item) => {
             const li = document.createElement('li');
@@ -180,6 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderRuntimeBrief(data, source) {
+        latestRuntimeBrief = data;
         const replaySummary = data.replay_summary || {};
         const reportContract = data.report_contract || {};
         const targetService = data.target_service || {};
@@ -202,13 +211,77 @@ document.addEventListener('DOMContentLoaded', () => {
         renderList(readinessWatchouts, data.watchouts || ['No watchouts available.']);
     }
 
+    function deriveReviewPackFromRuntime(data) {
+        const reportContract = data.report_contract || {};
+        const replaySummary = data.replay_summary || {};
+        const targetService = data.target_service || {};
+        return {
+            headline: 'Reviewer-first pack for replay evidence, target reachability, and downstream handoff readiness in air-gapped environments.',
+            proof_bundle: {
+                replay_cases: replaySummary.cases || 0,
+                rubric_checks: replaySummary.total_checks || 0,
+                score_pct: replaySummary.score_pct || 0,
+            },
+            target_boundary: {
+                status: targetService.status || 'unavailable',
+                service: targetService.service || 'unknown',
+            },
+            handoff_contract: {
+                delivery_modes: reportContract.delivery_modes || [],
+            },
+            artifacts: data.artifacts || [],
+            review_sequence: [
+                'Confirm /health and /api/meta before claiming live target readiness.',
+                'Read /api/runtime/brief for replay score and trust boundary.',
+                'Run live or recorded incident review only after schema and replay evidence align.',
+            ],
+        };
+    }
+
+    function renderReviewPack(data) {
+        const proofBundle = data.proof_bundle || {};
+        const targetBoundary = data.target_boundary || {};
+        const handoffContract = data.handoff_contract || {};
+        const artifacts = data.artifacts || [];
+
+        reviewPackHeadline.textContent = data.headline || 'No reviewer pack headline available.';
+        reviewPackProof.textContent = `${proofBundle.score_pct || 0}% / ${proofBundle.rubric_checks || 0} checks`;
+        reviewPackTarget.textContent = `${targetBoundary.status || '--'} · ${targetBoundary.service || '--'}`;
+        renderList(
+            reviewPackArtifacts,
+            artifacts.map((item) => `${item.label} -> ${item.href || item.path || '-'}`)
+        );
+        renderList(reviewPackSequence, data.review_sequence || ['No review sequence available.']);
+        renderList(reviewPackDelivery, handoffContract.delivery_modes || ['No delivery modes available.']);
+    }
+
     async function loadRuntimeBrief() {
         try {
             const { data, source } = await fetchJsonWithFallback('/api/runtime/brief', DEMO_RUNTIME_BRIEF_URL);
             renderRuntimeBrief(data, source);
+            return data;
         } catch (error) {
             readinessSource.textContent = 'Unavailable';
             appendToTerminal(`[Error] Failed to load runtime brief: ${error.message}`, 'critical');
+            return null;
+        }
+    }
+
+    async function loadReviewPack() {
+        try {
+            const data = await fetchJson('/api/review-pack');
+            renderReviewPack(data);
+        } catch (_) {
+            if (latestRuntimeBrief) {
+                renderReviewPack(deriveReviewPackFromRuntime(latestRuntimeBrief));
+                return;
+            }
+            reviewPackHeadline.textContent = 'Review pack unavailable.';
+            renderList(reviewPackArtifacts, ['No review artifacts available.']);
+            renderList(reviewPackSequence, ['Load /api/runtime/brief or /api/review-pack when the engine is available.']);
+            renderList(reviewPackDelivery, ['No delivery modes available.']);
+            reviewPackProof.textContent = '--';
+            reviewPackTarget.textContent = '--';
         }
     }
 
@@ -359,6 +432,6 @@ document.addEventListener('DOMContentLoaded', () => {
             chaosBtn.click();
         }
     });
-    loadRuntimeBrief();
+    loadRuntimeBrief().then(() => loadReviewPack());
     loadReplaySuite();
 });
