@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewPackArtifacts = document.getElementById('reviewpack-artifacts');
     const reviewPackSequence = document.getElementById('reviewpack-sequence');
     const reviewPackDelivery = document.getElementById('reviewpack-delivery');
+    const copyReviewPathBtn = document.getElementById('copy-review-path-btn');
+    const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
+    const loadReplayBtn = document.getElementById('load-replay-btn');
 
     const DEMO_REPLAY_URL = './demo-data/replay-suite.json';
     const DEMO_REPORT_URL = './demo-data/sample-report.json';
@@ -44,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentLine = null;
     let runtimeMode = 'checking';
     let latestRuntimeBrief = null;
+    let latestReplaySuite = null;
 
     function appendToTerminal(text, type = 'system') {
         const div = document.createElement('div');
@@ -72,6 +76,31 @@ document.addEventListener('DOMContentLoaded', () => {
             span.textContent = item;
             target.appendChild(span);
         });
+    }
+
+    async function copyTextToClipboard(text) {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            return;
+        }
+
+        const helper = document.createElement('textarea');
+        helper.value = text;
+        helper.setAttribute('readonly', 'true');
+        helper.style.position = 'absolute';
+        helper.style.left = '-9999px';
+        document.body.appendChild(helper);
+        helper.select();
+        document.execCommand('copy');
+        helper.remove();
+    }
+
+    function flashButtonLabel(button, idleLabel, nextLabel) {
+        if (!button) return;
+        button.textContent = nextLabel;
+        window.setTimeout(() => {
+            button.textContent = idleLabel;
+        }, 1400);
     }
 
     function updateStatus(state, label) {
@@ -157,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderReplaySuite(data, source) {
+        latestReplaySuite = data;
         const summary = data.summary || {};
         replayRefreshState.textContent = source === 'demo' ? 'Recorded' : 'Loaded';
         replayScore.textContent = `${summary.score_pct || 0}%`;
@@ -170,7 +200,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 ? run.score_pct
                 : Math.round(((run.passed_checks || 0) / Math.max(run.total_checks || 1, 1)) * 1000) / 10;
             const article = document.createElement('article');
-            article.className = 'replay-case';
+            article.className = 'replay-case is-clickable';
+            article.tabIndex = 0;
+            article.setAttribute('role', 'button');
             article.innerHTML = `
                 <div class="replay-case__top">
                     <h3>${run.title}</h3>
@@ -182,7 +214,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span>${run.passed_checks}/${run.total_checks} checks</span>
                 </div>
                 <p>${run.report.summary}</p>
+                <div class="replay-case__hint">Press to focus this replay case</div>
             `;
+            const focusCase = () => focusReplayCase(run);
+            article.addEventListener('click', focusCase);
+            article.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    focusCase();
+                }
+            });
             replayCases.appendChild(article);
         });
     }
@@ -266,6 +307,68 @@ document.addEventListener('DOMContentLoaded', () => {
             ]
         );
         renderList(reviewPackDelivery, handoffContract.delivery_modes || ['No delivery modes available.']);
+    }
+
+    function focusReplayCase(run) {
+        if (!run?.report) return;
+        renderReport(run.report, `Replay focus · ${run.title}`);
+        updateStatus('review', 'REPLAY FOCUS');
+        appendToTerminal(`[Review] Loaded replay case "${run.title}" into the incident panel.`, 'system');
+    }
+
+    async function copyReviewPath() {
+        const sequence = Array.from(reviewPackSequence.querySelectorAll('li'))
+            .map((item) => item.textContent?.trim())
+            .filter(Boolean);
+        const text = [
+            'Aegis-Air review path',
+            `Headline: ${reviewPackHeadline.textContent || '-'}`,
+            `Proof bundle: ${reviewPackProof.textContent || '-'}`,
+            `Target boundary: ${reviewPackTarget.textContent || '-'}`,
+            '',
+            'Review sequence',
+            ...(sequence.length > 0 ? sequence.map((item) => `- ${item}`) : ['- Review sequence unavailable']),
+        ].join('\n');
+
+        try {
+            await copyTextToClipboard(text);
+            flashButtonLabel(copyReviewPathBtn, 'Copy Review Path', 'Copied');
+        } catch (error) {
+            console.warn('copy review path failed', error);
+            flashButtonLabel(copyReviewPathBtn, 'Copy Review Path', 'Copy failed');
+        }
+    }
+
+    async function copyReviewRoutes() {
+        const routes = Array.from(reviewPackArtifacts.querySelectorAll('li'))
+            .map((item) => item.textContent?.trim())
+            .filter(Boolean);
+        const runtimeLinks = latestRuntimeBrief?.links
+            ? Object.entries(latestRuntimeBrief.links).map(([label, href]) => `${label}: ${href}`)
+            : [];
+        const text = [
+            'Aegis-Air review routes',
+            ...routes.map((item) => `- ${item}`),
+            ...(runtimeLinks.length > 0 ? ['', 'Runtime links', ...runtimeLinks.map((item) => `- ${item}`)] : []),
+        ].join('\n');
+
+        try {
+            await copyTextToClipboard(text);
+            flashButtonLabel(copyReviewRoutesBtn, 'Copy Review Routes', 'Copied');
+        } catch (error) {
+            console.warn('copy review routes failed', error);
+            flashButtonLabel(copyReviewRoutesBtn, 'Copy Review Routes', 'Copy failed');
+        }
+    }
+
+    function loadTopReplayCase() {
+        const topCase = latestReplaySuite?.runs?.[0];
+        if (!topCase) {
+            flashButtonLabel(loadReplayBtn, 'Load Top Replay', 'Unavailable');
+            return;
+        }
+        focusReplayCase(topCase);
+        flashButtonLabel(loadReplayBtn, 'Load Top Replay', 'Loaded');
     }
 
     async function loadRuntimeBrief() {
@@ -447,4 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     loadRuntimeBrief().then(() => loadReviewPack());
     loadReplaySuite();
+    copyReviewPathBtn.addEventListener('click', copyReviewPath);
+    copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
+    loadReplayBtn.addEventListener('click', loadTopReplayCase);
 });
