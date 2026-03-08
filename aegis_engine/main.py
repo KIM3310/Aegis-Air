@@ -193,6 +193,61 @@ async def build_runtime_brief() -> dict[str, Any]:
     }
 
 
+async def build_review_pack() -> dict[str, Any]:
+    runtime_brief = await build_runtime_brief()
+    report_contract = runtime_brief["report_contract"]
+    replay_summary = runtime_brief["replay_summary"]
+    target_service = runtime_brief["target_service"]
+
+    return {
+        "status": runtime_brief["status"],
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        "readiness_contract": "aegis-air-review-pack-v1",
+        "headline": "Reviewer-first pack for replay evidence, target reachability, and downstream handoff readiness in air-gapped environments.",
+        "proof_bundle": {
+            "replay_cases": replay_summary["cases"],
+            "rubric_checks": replay_summary["total_checks"],
+            "score_pct": replay_summary["score_pct"],
+            "target_meta_reachable": target_service.get("status") == "ok",
+            "review_endpoints": [
+                "/health",
+                "/api/meta",
+                "/api/runtime/brief",
+                "/api/review-pack",
+                "/api/schema/report",
+                "/api/evals/replays",
+            ],
+        },
+        "target_boundary": {
+            "status": target_service.get("status", "unavailable"),
+            "meta_url": target_service.get("meta_url"),
+            "service": target_service.get("service", "unknown"),
+        },
+        "handoff_contract": {
+            "schema": report_contract["schema"],
+            "delivery_modes": report_contract["delivery_modes"],
+            "required_fields": report_contract["required_fields"],
+        },
+        "review_sequence": [
+            "Confirm /health and /api/meta before claiming live target readiness.",
+            "Read /api/runtime/brief for replay score and trust boundary.",
+            "Read /api/review-pack for downstream handoff contract and review endpoints.",
+            "Run live or recorded incident review only after schema and replay evidence align.",
+        ],
+        "artifacts": runtime_brief["artifacts"],
+        "watchouts": runtime_brief["watchouts"],
+        "links": {
+            "health": "/health",
+            "meta": "/api/meta",
+            "runtime_brief": "/api/runtime/brief",
+            "review_pack": "/api/review-pack",
+            "report_schema": "/api/schema/report",
+            "replay_evals": "/api/evals/replays",
+        },
+    }
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -392,6 +447,11 @@ async def runtime_brief() -> dict[str, Any]:
     return await build_runtime_brief()
 
 
+@app.get("/api/review-pack")
+async def review_pack() -> dict[str, Any]:
+    return await build_review_pack()
+
+
 @app.get("/api/meta")
 def engine_meta() -> dict[str, Any]:
     return {
@@ -413,6 +473,7 @@ def engine_meta() -> dict[str, Any]:
             "structured-incident-report",
             "replay-evals",
             "runtime-brief",
+            "review-pack",
             "report-schema",
             "webhook-alert-ingest",
             "static-frontend-mount",
@@ -421,6 +482,7 @@ def engine_meta() -> dict[str, Any]:
             "/health",
             "/api/meta",
             "/api/runtime/brief",
+            "/api/review-pack",
             "/api/schema/report",
             "/api/chaos/trigger",
             "/api/incidents/report",
@@ -438,7 +500,12 @@ def health_check() -> dict[str, Any]:
         "service": "aegis-air-engine",
         "message": "Aegis-Air engine online. Zero-trust mode active.",
         "diagnostics": build_engine_diagnostics(),
-        "capabilities": ["runtime-brief-surface", "report-schema-surface", "replay-eval-surface"],
+        "capabilities": [
+            "runtime-brief-surface",
+            "review-pack-surface",
+            "report-schema-surface",
+            "replay-eval-surface",
+        ],
         "ops_contract": {
             "schema": "ops-envelope-v1",
             "version": 2,
@@ -447,6 +514,7 @@ def health_check() -> dict[str, Any]:
         "links": {
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
+            "review_pack": "/api/review-pack",
             "report_schema": "/api/schema/report",
             "chaos_trigger": "/api/chaos/trigger",
             "replay_evals": "/api/evals/replays",

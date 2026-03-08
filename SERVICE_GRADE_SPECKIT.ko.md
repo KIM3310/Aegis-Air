@@ -4,7 +4,7 @@ Last updated: 2026-03-08
 
 ## S - Scope
 - 대상: local-first / air-gapped incident review engine
-- 이번 iteration 목표: `runtime brief + incident schema + frontend readiness board`를 추가해 로컬 엔진의 신뢰 경계를 첫 화면에서 읽히게 만들기
+- 이번 iteration 목표: `review pack + target boundary + downstream handoff contract`를 추가해 replay evidence를 reviewer-first surface로 묶는다.
 
 ## P - Product Thesis
 - Aegis-Air는 "오프라인에서도 incident review가 가능한 엔진"이라는 메시지가 분명해야 한다.
@@ -12,9 +12,10 @@ Last updated: 2026-03-08
 
 ## E - Execution
 - `/api/runtime/brief`로 trust boundary, replay score, target reachability를 노출
+- `/api/review-pack`으로 replay evidence, target boundary, downstream handoff contract를 분리
 - `/api/schema/report`로 handoff contract를 명시
-- frontend에 `Local-First Readiness` 보드를 추가
-- recorded demo mode에서도 같은 readiness surface를 fallback으로 유지
+- frontend에 `Local-First Readiness` + `Review Pack` surface를 추가
+- recorded demo mode에서도 runtime brief 기반 fallback으로 같은 reviewer pack을 유지
 
 ## C - Criteria
 - `pytest`와 replay suite green

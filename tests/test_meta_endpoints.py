@@ -29,16 +29,19 @@ def test_engine_health_and_meta():
     health = client.get("/health")
     meta = client.get("/api/meta")
     runtime_brief = client.get("/api/runtime/brief")
+    review_pack = client.get("/api/review-pack")
     schema = client.get("/api/schema/report")
 
     assert health.status_code == 200
     assert health.json()["service"] == "aegis-air-engine"
     assert health.json()["links"]["meta"] == "/api/meta"
     assert health.json()["links"]["runtime_brief"] == "/api/runtime/brief"
+    assert health.json()["links"]["review_pack"] == "/api/review-pack"
     assert health.json()["links"]["report_schema"] == "/api/schema/report"
     assert health.json()["diagnostics"]["live_loop_ready"] is True
     assert health.json()["diagnostics"]["replay_eval_ready"] is True
     assert "runtime-brief-surface" in health.json()["capabilities"]
+    assert "review-pack-surface" in health.json()["capabilities"]
     assert health.json()["ops_contract"]["schema"] == "ops-envelope-v1"
     assert "next_action" in health.json()["diagnostics"]
     assert health.json()["links"]["replay_evals"] == "/api/evals/replays"
@@ -54,6 +57,7 @@ def test_engine_health_and_meta():
     assert "/api/evals/replays" in body["routes"]
     assert "/api/incidents/report" in body["routes"]
     assert "/api/runtime/brief" in body["routes"]
+    assert "/api/review-pack" in body["routes"]
     assert "/api/schema/report" in body["routes"]
 
     assert runtime_brief.status_code == 200
@@ -64,6 +68,13 @@ def test_engine_health_and_meta():
     assert brief["replay_summary"]["cases"] == 4
     assert isinstance(brief["review_flow"], list)
     assert isinstance(brief["target_service"], dict)
+
+    assert review_pack.status_code == 200
+    pack = review_pack.json()
+    assert pack["readiness_contract"] == "aegis-air-review-pack-v1"
+    assert pack["handoff_contract"]["schema"] == "aegis-air-incident-report-v1"
+    assert "/api/review-pack" in pack["proof_bundle"]["review_endpoints"]
+    assert isinstance(pack["review_sequence"], list)
 
     assert schema.status_code == 200
     schema_body = schema.json()

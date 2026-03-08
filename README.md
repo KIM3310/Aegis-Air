@@ -68,6 +68,7 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 - `GET /health`
 - `GET /api/meta`
 - `GET /api/runtime/brief`
+- `GET /api/review-pack`
 - `GET /api/schema/report`
 - `GET /api/chaos/trigger`
 - `POST /api/incidents/report`
@@ -79,6 +80,8 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 
 - `GET /api/runtime/brief`
   - local-first readiness contract, replay score, trust boundary, target reachability
+- `GET /api/review-pack`
+  - replay evidence bundle, target boundary, downstream handoff contract, and review sequence
 - `GET /api/schema/report`
   - downstream contract for structured incident handoff
 - frontend `Local-First Readiness`
