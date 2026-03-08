@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewPackDelivery = document.getElementById('reviewpack-delivery');
     const copyReviewPathBtn = document.getElementById('copy-review-path-btn');
     const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
+    const copyReviewPackBtn = document.getElementById('copy-review-pack-btn');
     const copyTopReplayBtn = document.getElementById('copy-top-replay-btn');
     const loadReplayBtn = document.getElementById('load-replay-btn');
 
@@ -362,6 +363,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function copyReviewPackSummary() {
+        const sequence = Array.from(reviewPackSequence.querySelectorAll('li'))
+            .map((item) => item.textContent?.trim())
+            .filter(Boolean);
+        const artifacts = Array.from(reviewPackArtifacts.querySelectorAll('li'))
+            .map((item) => item.textContent?.trim())
+            .filter(Boolean);
+        const text = [
+            'Aegis-Air review pack',
+            `Headline: ${reviewPackHeadline.textContent || '-'}`,
+            `Proof bundle: ${reviewPackProof.textContent || '-'}`,
+            `Target boundary: ${reviewPackTarget.textContent || '-'}`,
+            '',
+            'Review sequence',
+            ...(sequence.length > 0 ? sequence.map((item) => `- ${item}`) : ['- Review sequence unavailable']),
+            '',
+            'Artifacts',
+            ...(artifacts.length > 0 ? artifacts.map((item) => `- ${item}`) : ['- Review artifacts unavailable']),
+        ].join('\n');
+
+        try {
+            await copyTextToClipboard(text);
+            flashButtonLabel(copyReviewPackBtn, 'Copy Review Pack', 'Copied');
+        } catch (error) {
+            console.warn('copy review pack failed', error);
+            flashButtonLabel(copyReviewPackBtn, 'Copy Review Pack', 'Copy failed');
+        }
+    }
+
     function loadTopReplayCase() {
         const topCase = latestReplaySuite?.runs?.[0];
         if (!topCase) {
@@ -587,6 +617,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadReplaySuite();
     copyReviewPathBtn.addEventListener('click', copyReviewPath);
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
+    copyReviewPackBtn.addEventListener('click', copyReviewPackSummary);
     copyTopReplayBtn.addEventListener('click', copyTopReplaySummary);
     loadReplayBtn.addEventListener('click', loadTopReplayCase);
 });
