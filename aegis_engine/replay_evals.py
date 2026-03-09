@@ -534,11 +534,16 @@ def build_replay_summary(
     *,
     min_score_pct: float | None = None,
     failure_bucket: str | None = None,
+    severity: str | None = None,
 ) -> dict[str, Any]:
     suite = run_replay_suite()
     normalized_bucket = str(failure_bucket or "").strip().lower() or None
     if normalized_bucket and normalized_bucket not in FAILURE_TAXONOMY:
         raise ValueError("invalid failure_bucket filter")
+    normalized_severity = str(severity or "").strip().upper() or None
+    valid_severities = {"SEV1", "SEV2", "SEV3"}
+    if normalized_severity and normalized_severity not in valid_severities:
+        raise ValueError("invalid severity filter")
 
     normalized_min_score: float | None = None
     if min_score_pct is not None:
@@ -547,6 +552,8 @@ def build_replay_summary(
     runs = list(suite["runs"])
     if normalized_bucket:
         runs = [run for run in runs if run["failure_bucket"] == normalized_bucket]
+    if normalized_severity:
+        runs = [run for run in runs if run["severity"] == normalized_severity]
     if normalized_min_score is not None:
         runs = [run for run in runs if float(run["score_pct"]) >= normalized_min_score]
 
@@ -560,12 +567,19 @@ def build_replay_summary(
     )[:3]
     visible_buckets = Counter(run["failure_bucket"] for run in runs)
     visible_severities = Counter(run["severity"] for run in runs)
+    top_failed_checks = Counter(
+        check["name"]
+        for run in runs
+        for check in run["checks"]
+        if not check["passed"]
+    )
 
     return {
         "schema": "aegis-air-replay-summary-v1",
         "filters": {
             "min_score_pct": normalized_min_score,
             "failure_bucket": normalized_bucket,
+            "severity": normalized_severity,
         },
         "summary": {
             "visible_runs": len(runs),
@@ -577,6 +591,10 @@ def build_replay_summary(
             else 0.0,
             "bucket_breakdown": dict(visible_buckets),
             "severity_breakdown": dict(visible_severities),
+            "top_failed_checks": [
+                {"name": name, "count": count}
+                for name, count in top_failed_checks.most_common(5)
+            ],
         },
         "spotlight_runs": [
             {

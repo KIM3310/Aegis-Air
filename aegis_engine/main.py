@@ -460,11 +460,13 @@ def replay_eval_summary() -> dict[str, Any]:
 def replay_eval_review_summary(
     min_score_pct: float | None = None,
     failure_bucket: str | None = None,
+    severity: str | None = None,
 ) -> dict[str, Any]:
     try:
         summary = build_replay_summary(
             min_score_pct=min_score_pct,
             failure_bucket=failure_bucket,
+            severity=severity,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
