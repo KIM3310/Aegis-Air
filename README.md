@@ -69,6 +69,7 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 - `GET /api/meta`
 - `GET /api/runtime/brief`
 - `GET /api/review-pack`
+- `GET /api/incident-command-board`
 - `GET /api/schema/report`
 - `GET /api/chaos/trigger`
 - `POST /api/incidents/report`
@@ -82,6 +83,8 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
   - local-first readiness contract, replay score, trust boundary, target reachability
 - `GET /api/review-pack`
   - replay evidence bundle, target boundary, downstream handoff contract, and review sequence
+- `GET /api/incident-command-board`
+  - commander-facing triage board for the riskiest replay cases, next actions, and live target reachability
 - `GET /api/schema/report`
   - downstream contract for structured incident handoff
 - frontend `Local-First Readiness`
@@ -92,7 +95,8 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 1. Open `/health` to confirm whether target meta is reachable or still demo-only.
 2. Read `/api/runtime/brief` for replay score, trust boundary, and watchouts.
 3. Read `/api/review-pack` for delivery modes, proof assets, and downstream handoff contract.
-4. Open `/api/evals/replays` before claiming live-loop readiness.
+4. Open `/api/incident-command-board` to prioritize which replay cases need attention first.
+5. Open `/api/evals/replays` before claiming live-loop readiness.
 
 ## Role-Ready Artifacts
 
@@ -105,6 +109,7 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 - `/health`
 - `/api/runtime/brief`
 - `/api/review-pack`
+- `/api/incident-command-board`
 - `/api/evals/replays`
 
 Example response from `POST /api/incidents/report`:

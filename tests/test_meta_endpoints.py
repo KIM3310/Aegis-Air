@@ -31,6 +31,7 @@ def test_engine_health_and_meta():
     meta = client.get("/api/meta")
     runtime_brief = client.get("/api/runtime/brief")
     runtime_scorecard = client.get("/api/runtime/scorecard")
+    command_board = client.get("/api/incident-command-board")
     review_pack = client.get("/api/review-pack")
     replay_summary = client.get("/api/evals/replays/summary")
     schema = client.get("/api/schema/report")
@@ -40,11 +41,13 @@ def test_engine_health_and_meta():
     assert health.json()["links"]["meta"] == "/api/meta"
     assert health.json()["links"]["runtime_brief"] == "/api/runtime/brief"
     assert health.json()["links"]["review_pack"] == "/api/review-pack"
+    assert health.json()["links"]["incident_command_board"] == "/api/incident-command-board"
     assert health.json()["links"]["report_schema"] == "/api/schema/report"
     assert health.json()["links"]["replay_summary"] == "/api/evals/replays/summary"
     assert health.json()["diagnostics"]["live_loop_ready"] is True
     assert health.json()["diagnostics"]["replay_eval_ready"] is True
     assert "runtime-brief-surface" in health.json()["capabilities"]
+    assert "incident-command-board-surface" in health.json()["capabilities"]
     assert "review-pack-surface" in health.json()["capabilities"]
     assert health.json()["ops_contract"]["schema"] == "ops-envelope-v1"
     assert "next_action" in health.json()["diagnostics"]
@@ -60,6 +63,7 @@ def test_engine_health_and_meta():
     assert "/api/chaos/trigger" in body["routes"]
     assert "/api/evals/replays/summary" in body["routes"]
     assert "/api/evals/replays" in body["routes"]
+    assert "/api/incident-command-board" in body["routes"]
     assert "/api/incidents/report" in body["routes"]
     assert "/api/runtime/brief" in body["routes"]
     assert "/api/review-pack" in body["routes"]
@@ -80,6 +84,7 @@ def test_engine_health_and_meta():
     scorecard = runtime_scorecard.json()
     assert scorecard["schema"] == "aegis-air-runtime-scorecard-v1"
     assert scorecard["links"]["runtime_scorecard"] == "/api/runtime/scorecard"
+    assert scorecard["links"]["incident_command_board"] == "/api/incident-command-board"
     assert scorecard["replay_scorecard"]["cases"] == 4
     assert "target_meta_reachable" in scorecard["runtime"]
     assert isinstance(scorecard["telemetry"]["incident_reports"], int)
@@ -87,16 +92,24 @@ def test_engine_health_and_meta():
     assert "event_type_counts" in scorecard["persistence"]
     assert "protected_routes" in scorecard["operator_auth"]
 
+    assert command_board.status_code == 200
+    board = command_board.json()
+    assert board["contract_version"] == "aegis-air-incident-command-board-v1"
+    assert board["summary"]["visible_runs"] >= 1
+    assert board["links"]["incident_command_board"] == "/api/incident-command-board"
+
     assert review_pack.status_code == 200
     pack = review_pack.json()
     assert pack["readiness_contract"] == "aegis-air-review-pack-v1"
     assert pack["handoff_contract"]["schema"] == "aegis-air-incident-report-v1"
     assert "/api/review-pack" in pack["proof_bundle"]["review_endpoints"]
+    assert "/api/incident-command-board" in pack["proof_bundle"]["review_endpoints"]
     assert "/api/runtime/scorecard" in pack["proof_bundle"]["review_endpoints"]
     assert "/api/evals/replays/summary" in pack["proof_bundle"]["review_endpoints"]
     assert isinstance(pack["review_sequence"], list)
     assert len(pack["two_minute_review"]) == 4
     assert pack["proof_assets"][0]["href"] == "/health"
+    assert pack["links"]["incident_command_board"] == "/api/incident-command-board"
     assert pack["links"]["replay_summary"] == "/api/evals/replays/summary"
 
     assert replay_summary.status_code == 200
@@ -274,6 +287,21 @@ def test_replay_eval_review_summary_filters():
     assert invalid.status_code == 400
     invalid_severity = client.get("/api/evals/replays/summary?severity=SEV9")
     assert invalid_severity.status_code == 400
+
+
+def test_incident_command_board_filters():
+    client = TestClient(ENGINE.app)
+
+    response = client.get("/api/incident-command-board?failure_bucket=auth-regression&severity=SEV2")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["contract_version"] == "aegis-air-incident-command-board-v1"
+    assert body["summary"]["visible_runs"] == 1
+    assert body["items"][0]["failure_bucket"] == "auth-regression"
+    assert body["items"][0]["severity"] == "SEV2"
+
+    invalid = client.get("/api/incident-command-board?failure_bucket=bad-bucket")
+    assert invalid.status_code == 400
 
 
 def test_replay_metadata_endpoint():
