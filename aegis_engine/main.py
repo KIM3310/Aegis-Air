@@ -10,13 +10,18 @@ from typing import Any, AsyncIterator
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from aegis_engine.replay_evals import build_replay_metadata, build_structured_report, run_replay_suite
+from aegis_engine.replay_evals import (
+    build_replay_metadata,
+    build_replay_summary,
+    build_structured_report,
+    run_replay_suite,
+)
 
 app = FastAPI(title="Aegis-Air Engine", description="Local incident review engine for structured RCA")
 
@@ -146,7 +151,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             "replay_cases": replay_suite["summary"]["cases"],
             "rubric_checks": replay_suite["summary"]["total_checks"],
             "frontend_surfaces": 4,
-            "api_routes": 9,
+            "api_routes": 10,
         },
         "trust_boundary": [
             "telemetry stays local to the operator environment",
@@ -180,6 +185,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             {"label": "Engine Meta", "href": "/api/meta", "kind": "route"},
             {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
             {"label": "Incident Schema", "href": "/api/schema/report", "kind": "route"},
+            {"label": "Replay Summary", "href": "/api/evals/replays/summary", "kind": "route"},
             {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
             {"label": "Replay Eval Docs", "href": "docs/INCIDENT_REPLAY_EVALS.md", "kind": "doc"},
             {"label": "Replay Suite Runner", "href": "scripts/run_replay_suite.py", "kind": "script"},
@@ -188,6 +194,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
             {"label": "Review Pack", "href": "/api/review-pack", "kind": "route"},
+            {"label": "Replay Summary", "href": "/api/evals/replays/summary", "kind": "route"},
             {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
         ],
         "target_service": target_service,
@@ -199,6 +206,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             "/api/chaos/trigger",
             "/api/incidents/report",
             "/api/replays",
+            "/api/evals/replays/summary",
             "/api/evals/replays",
             "/webhook/alert",
         ],
@@ -228,6 +236,7 @@ async def build_review_pack() -> dict[str, Any]:
                 "/api/runtime/brief",
                 "/api/review-pack",
                 "/api/schema/report",
+                "/api/evals/replays/summary",
                 "/api/evals/replays",
             ],
         },
@@ -257,6 +266,7 @@ async def build_review_pack() -> dict[str, Any]:
             "runtime_brief": "/api/runtime/brief",
             "review_pack": "/api/review-pack",
             "report_schema": "/api/schema/report",
+            "replay_summary": "/api/evals/replays/summary",
             "replay_evals": "/api/evals/replays",
         },
     }
@@ -446,6 +456,26 @@ def replay_eval_summary() -> dict[str, Any]:
     }
 
 
+@app.get("/api/evals/replays/summary")
+def replay_eval_review_summary(
+    min_score_pct: float | None = None,
+    failure_bucket: str | None = None,
+) -> dict[str, Any]:
+    try:
+        summary = build_replay_summary(
+            min_score_pct=min_score_pct,
+            failure_bucket=failure_bucket,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        **summary,
+    }
+
+
 @app.get("/api/schema/report")
 def report_schema() -> dict[str, Any]:
     return {
@@ -485,6 +515,7 @@ def engine_meta() -> dict[str, Any]:
         "features": [
             "chaos-trigger",
             "structured-incident-report",
+            "replay-summary",
             "replay-evals",
             "runtime-brief",
             "review-pack",
@@ -501,6 +532,7 @@ def engine_meta() -> dict[str, Any]:
             "/api/chaos/trigger",
             "/api/incidents/report",
             "/api/replays",
+            "/api/evals/replays/summary",
             "/api/evals/replays",
             "/webhook/alert",
         ],
@@ -518,6 +550,7 @@ def health_check() -> dict[str, Any]:
             "runtime-brief-surface",
             "review-pack-surface",
             "report-schema-surface",
+            "replay-summary-surface",
             "replay-eval-surface",
         ],
         "ops_contract": {
@@ -531,6 +564,7 @@ def health_check() -> dict[str, Any]:
             "review_pack": "/api/review-pack",
             "report_schema": "/api/schema/report",
             "chaos_trigger": "/api/chaos/trigger",
+            "replay_summary": "/api/evals/replays/summary",
             "replay_evals": "/api/evals/replays",
         },
     }

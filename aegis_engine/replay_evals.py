@@ -530,6 +530,75 @@ def run_replay_suite() -> dict[str, Any]:
     }
 
 
+def build_replay_summary(
+    *,
+    min_score_pct: float | None = None,
+    failure_bucket: str | None = None,
+) -> dict[str, Any]:
+    suite = run_replay_suite()
+    normalized_bucket = str(failure_bucket or "").strip().lower() or None
+    if normalized_bucket and normalized_bucket not in FAILURE_TAXONOMY:
+        raise ValueError("invalid failure_bucket filter")
+
+    normalized_min_score: float | None = None
+    if min_score_pct is not None:
+        normalized_min_score = max(0.0, min(100.0, float(min_score_pct)))
+
+    runs = list(suite["runs"])
+    if normalized_bucket:
+        runs = [run for run in runs if run["failure_bucket"] == normalized_bucket]
+    if normalized_min_score is not None:
+        runs = [run for run in runs if float(run["score_pct"]) >= normalized_min_score]
+
+    spotlight_runs = sorted(
+        runs,
+        key=lambda item: (
+            float(item["score_pct"]),
+            item["passed_checks"] - item["total_checks"],
+            str(item["case_id"]),
+        ),
+    )[:3]
+    visible_buckets = Counter(run["failure_bucket"] for run in runs)
+    visible_severities = Counter(run["severity"] for run in runs)
+
+    return {
+        "schema": "aegis-air-replay-summary-v1",
+        "filters": {
+            "min_score_pct": normalized_min_score,
+            "failure_bucket": normalized_bucket,
+        },
+        "summary": {
+            "visible_runs": len(runs),
+            "total_runs": len(suite["runs"]),
+            "avg_score_pct": round(
+                sum(float(run["score_pct"]) for run in runs) / len(runs), 1
+            )
+            if runs
+            else 0.0,
+            "bucket_breakdown": dict(visible_buckets),
+            "severity_breakdown": dict(visible_severities),
+        },
+        "spotlight_runs": [
+            {
+                "case_id": run["case_id"],
+                "title": run["title"],
+                "failure_bucket": run["failure_bucket"],
+                "severity": run["severity"],
+                "score_pct": run["score_pct"],
+                "failed_checks": [
+                    check["name"] for check in run["checks"] if not check["passed"]
+                ],
+            }
+            for run in spotlight_runs
+        ],
+        "reviewer_notes": [
+            "Replay summary keeps the weakest cases visible instead of hiding behind the aggregate score.",
+            "Use failure_bucket filters to isolate one RCA class before changing deterministic rules.",
+            "Use min_score_pct as a promotion screen, then inspect /api/evals/replays for full run detail.",
+        ],
+    }
+
+
 if __name__ == "__main__":
     suite = run_replay_suite()
     summary = suite["summary"]
