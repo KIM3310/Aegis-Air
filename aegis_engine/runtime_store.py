@@ -27,6 +27,8 @@ def build_runtime_store_summary(limit: int = 25) -> dict[str, Any]:
             "enabled": True,
             "path": str(target),
             "persisted_count": 0,
+            "last_event_at": None,
+            "event_type_counts": {},
             "recent_events": [],
         }
 
@@ -38,9 +40,20 @@ def build_runtime_store_summary(limit: int = 25) -> dict[str, Any]:
         except json.JSONDecodeError:
             continue
 
+    event_type_counts: dict[str, int] = {}
+    last_event_at: str | None = None
+    for event in recent_events:
+        event_type = str(event.get("event_type") or event.get("event") or "unknown")
+        event_type_counts[event_type] = event_type_counts.get(event_type, 0) + 1
+        at = event.get("at") or event.get("timestamp")
+        if isinstance(at, str) and (last_event_at is None or at > last_event_at):
+            last_event_at = at
+
     return {
         "enabled": True,
         "path": str(target),
         "persisted_count": len(lines),
+        "last_event_at": last_event_at,
+        "event_type_counts": event_type_counts,
         "recent_events": recent_events,
     }

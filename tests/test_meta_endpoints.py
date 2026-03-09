@@ -84,6 +84,7 @@ def test_engine_health_and_meta():
     assert "target_meta_reachable" in scorecard["runtime"]
     assert isinstance(scorecard["telemetry"]["incident_reports"], int)
     assert scorecard["persistence"]["enabled"] is True
+    assert "event_type_counts" in scorecard["persistence"]
     assert "protected_routes" in scorecard["operator_auth"]
 
     assert review_pack.status_code == 200
