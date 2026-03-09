@@ -10,7 +10,7 @@ from typing import Any, AsyncIterator
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -22,6 +22,8 @@ from aegis_engine.replay_evals import (
     build_structured_report,
     run_replay_suite,
 )
+from aegis_engine.operator_access import operator_token_enabled, require_operator_token
+from aegis_engine.runtime_store import append_runtime_event, build_runtime_store_summary
 
 app = FastAPI(title="Aegis-Air Engine", description="Local incident review engine for structured RCA")
 
@@ -103,17 +105,21 @@ def build_incident_report_schema() -> dict[str, Any]:
 
 
 def _record_runtime_event(event_type: str) -> None:
+    timestamp = _utc_now()
     if event_type == "chaos":
         RUNTIME_TELEMETRY["chaos_trigger_runs"] += 1
-        RUNTIME_TELEMETRY["last_chaos_at"] = _utc_now()
+        RUNTIME_TELEMETRY["last_chaos_at"] = timestamp
+        append_runtime_event({"event": event_type, "timestamp": timestamp})
         return
     if event_type == "incident":
         RUNTIME_TELEMETRY["incident_reports"] += 1
-        RUNTIME_TELEMETRY["last_incident_at"] = _utc_now()
+        RUNTIME_TELEMETRY["last_incident_at"] = timestamp
+        append_runtime_event({"event": event_type, "timestamp": timestamp})
         return
     if event_type == "webhook":
         RUNTIME_TELEMETRY["webhook_alerts"] += 1
-        RUNTIME_TELEMETRY["last_webhook_at"] = _utc_now()
+        RUNTIME_TELEMETRY["last_webhook_at"] = timestamp
+        append_runtime_event({"event": event_type, "timestamp": timestamp})
 
 
 def _build_runtime_telemetry_payload() -> dict[str, Any]:
@@ -233,6 +239,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
         ],
         "runtime_telemetry": _build_runtime_telemetry_payload(),
+        "operator_auth": {"enabled": operator_token_enabled()},
         "target_service": target_service,
         "routes": [
             "/health",
@@ -315,6 +322,7 @@ async def build_runtime_scorecard() -> dict[str, Any]:
     replay_suite = run_replay_suite()
     target_service = await _fetch_target_service_meta()
     telemetry = _build_runtime_telemetry_payload()
+    persisted = build_runtime_store_summary(10)
     total_events = (
         telemetry["chaos_trigger_runs"]
         + telemetry["incident_reports"]
@@ -342,6 +350,11 @@ async def build_runtime_scorecard() -> dict[str, Any]:
         "activity": {
             "total_runtime_events": total_events,
             "delivery_modes": ["live-probe", "webhook-alert", "recorded-review"],
+        },
+        "persistence": persisted,
+        "operator_auth": {
+            "enabled": operator_token_enabled(),
+            "protected_routes": ["/api/chaos/trigger", "/api/incidents/report", "/webhook/alert"],
         },
         "recommendations": [
             "Run replay summary before claiming incident taxonomy stability.",
@@ -511,20 +524,23 @@ async def generate_chaos_and_stream_response() -> AsyncIterator[str]:
 
 
 @app.get("/api/chaos/trigger")
-async def trigger_chaos_endpoint() -> StreamingResponse:
+async def trigger_chaos_endpoint(request: Request) -> StreamingResponse:
+    require_operator_token(request)
     _record_runtime_event("chaos")
     return StreamingResponse(generate_chaos_and_stream_response(), media_type="text/event-stream")
 
 
 @app.post("/api/incidents/report")
-async def build_report_endpoint(payload: AlertPayload) -> dict[str, Any]:
+async def build_report_endpoint(payload: AlertPayload, request: Request) -> dict[str, Any]:
+    require_operator_token(request)
     _record_runtime_event("incident")
     report = build_structured_report(payload.model_dump())
     return {"status": "success", "report": report, "rca_report": report["rca_report"]}
 
 
 @app.post("/webhook/alert")
-async def handle_alert(payload: AlertPayload) -> dict[str, Any]:
+async def handle_alert(payload: AlertPayload, request: Request) -> dict[str, Any]:
+    require_operator_token(request)
     _record_runtime_event("webhook")
     report = build_structured_report(payload.model_dump())
     return {
@@ -620,6 +636,7 @@ def engine_meta() -> dict[str, Any]:
         "features": [
             "chaos-trigger",
             "structured-incident-report",
+            "operator-auth-boundary",
             "replay-summary",
             "replay-evals",
             "runtime-brief",
@@ -643,6 +660,7 @@ def engine_meta() -> dict[str, Any]:
             "/api/evals/replays",
             "/webhook/alert",
         ],
+        "auth": {"operator_token_enabled": operator_token_enabled()},
     }
 
 
@@ -653,8 +671,10 @@ def health_check() -> dict[str, Any]:
         "service": "aegis-air-engine",
         "message": "Aegis-Air engine online. Zero-trust mode active.",
         "diagnostics": build_engine_diagnostics(),
+        "auth": {"operator_token_enabled": operator_token_enabled()},
         "capabilities": [
             "runtime-brief-surface",
+            "runtime-scorecard-surface",
             "review-pack-surface",
             "report-schema-surface",
             "replay-summary-surface",
