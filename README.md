@@ -127,7 +127,8 @@ Example response from `POST /api/incidents/report`:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt -r requirements-dev.txt
+python -m pip install -U pip
+python -m pip install -e ".[dev]"
 ```
 
 Terminal 1:
@@ -150,7 +151,7 @@ Then open:
 
 ```bash
 python -m compileall -q .
-pytest -q
+python -m pytest
 python scripts/run_replay_suite.py
 ```
 
