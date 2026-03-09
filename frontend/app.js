@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
     const copyReviewPackBtn = document.getElementById('copy-review-pack-btn');
     const copyHandoffBtn = document.getElementById('copy-handoff-btn');
+    const copyReadinessClaimBtn = document.getElementById('copy-readiness-claim-btn');
     const copyTopReplayBtn = document.getElementById('copy-top-replay-btn');
     const loadReplayBtn = document.getElementById('load-replay-btn');
 
@@ -421,6 +422,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function copyReadinessClaim() {
+        const topCase = latestReplaySuite?.runs?.[0];
+        const report = topCase?.report || {};
+        const text = [
+            'Aegis-Air readiness claim',
+            `Headline: ${reviewPackHeadline.textContent || '-'}`,
+            `Proof bundle: ${reviewPackProof.textContent || '-'}`,
+            `Target boundary: ${reviewPackTarget.textContent || '-'}`,
+            `Replay score: ${replayScore.textContent || '-'}`,
+            `Severity accuracy: ${replaySeverityAccuracy.textContent || '-'}`,
+            `Top replay: ${topCase?.title || '-'}`,
+            `Bucket: ${topCase?.failure_bucket || report.failure_bucket || '-'}`,
+            `Action: ${(report.immediate_actions || [])[0] || 'unavailable'}`,
+            '',
+            'Fast routes',
+            '- /api/runtime/brief',
+            '- /api/review-pack',
+            '- /api/evals/replays',
+        ].join('\n');
+
+        try {
+            await copyTextToClipboard(text);
+            flashButtonLabel(copyReadinessClaimBtn, 'Copy Readiness Claim', 'Copied');
+        } catch (error) {
+            console.warn('copy readiness claim failed', error);
+            flashButtonLabel(copyReadinessClaimBtn, 'Copy Readiness Claim', 'Copy failed');
+        }
+    }
+
     function loadTopReplayCase() {
         const topCase = latestReplaySuite?.runs?.[0];
         if (!topCase) {
@@ -648,6 +678,7 @@ document.addEventListener('DOMContentLoaded', () => {
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
     copyReviewPackBtn.addEventListener('click', copyReviewPackSummary);
     copyHandoffBtn.addEventListener('click', copyHandoffSnapshot);
+    copyReadinessClaimBtn.addEventListener('click', copyReadinessClaim);
     copyTopReplayBtn.addEventListener('click', copyTopReplaySummary);
     loadReplayBtn.addEventListener('click', loadTopReplayCase);
 });
