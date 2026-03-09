@@ -25,3 +25,4 @@ nohup.out
 media/
 .codex_runs/
 .wrangler/
+.runtime/

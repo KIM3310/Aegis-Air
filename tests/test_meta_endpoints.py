@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 import sys
 
@@ -82,6 +83,8 @@ def test_engine_health_and_meta():
     assert scorecard["replay_scorecard"]["cases"] == 4
     assert "target_meta_reachable" in scorecard["runtime"]
     assert isinstance(scorecard["telemetry"]["incident_reports"], int)
+    assert scorecard["persistence"]["enabled"] is True
+    assert "protected_routes" in scorecard["operator_auth"]
 
     assert review_pack.status_code == 200
     pack = review_pack.json()
@@ -196,6 +199,40 @@ def test_runtime_scorecard_counts_runtime_events():
     assert body["telemetry"]["incident_reports"] >= 1
     assert body["activity"]["total_runtime_events"] >= 1
     assert body["links"]["review_pack"] == "/api/review-pack"
+
+
+def test_operator_token_can_guard_mutating_routes():
+    client = TestClient(ENGINE.app)
+    previous = os.environ.get("AEGIS_AIR_OPERATOR_TOKEN")
+    os.environ["AEGIS_AIR_OPERATOR_TOKEN"] = "test-token"
+    try:
+        denied = client.post(
+            "/api/incidents/report",
+            json={
+                "service_name": "checkout",
+                "incident_time": "2026-03-09T10:05:00Z",
+                "status_code": 503,
+                "error_details": "Checkout timed out during payment capture.",
+            },
+        )
+        assert denied.status_code == 403
+
+        allowed = client.post(
+            "/api/incidents/report",
+            headers={"authorization": "Bearer test-token"},
+            json={
+                "service_name": "checkout",
+                "incident_time": "2026-03-09T10:05:00Z",
+                "status_code": 503,
+                "error_details": "Checkout timed out during payment capture.",
+            },
+        )
+        assert allowed.status_code == 200
+    finally:
+        if previous is None:
+            os.environ.pop("AEGIS_AIR_OPERATOR_TOKEN", None)
+        else:
+            os.environ["AEGIS_AIR_OPERATOR_TOKEN"] = previous
 
 
 def test_replay_eval_summary():
