@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyReviewPathBtn = document.getElementById('copy-review-path-btn');
     const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
     const copyReviewPackBtn = document.getElementById('copy-review-pack-btn');
+    const copyHandoffBtn = document.getElementById('copy-handoff-btn');
     const copyTopReplayBtn = document.getElementById('copy-top-replay-btn');
     const loadReplayBtn = document.getElementById('load-replay-btn');
 
@@ -392,6 +393,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function copyHandoffSnapshot() {
+        const deliveryModes = Array.from(reviewPackDelivery.querySelectorAll('li'))
+            .map((item) => item.textContent?.trim())
+            .filter(Boolean);
+        const topCase = latestReplaySuite?.runs?.[0];
+        const report = topCase?.report || {};
+        const text = [
+            'Aegis-Air handoff snapshot',
+            `Headline: ${reviewPackHeadline.textContent || '-'}`,
+            `Proof bundle: ${reviewPackProof.textContent || '-'}`,
+            `Target boundary: ${reviewPackTarget.textContent || '-'}`,
+            `Top replay: ${topCase?.title || '-'}`,
+            `Severity: ${topCase?.severity || report.severity || '-'}`,
+            `Bucket: ${topCase?.failure_bucket || report.failure_bucket || '-'}`,
+            '',
+            'Delivery modes',
+            ...(deliveryModes.length > 0 ? deliveryModes.map((item) => `- ${item}`) : ['- Delivery modes unavailable']),
+        ].join('\n');
+
+        try {
+            await copyTextToClipboard(text);
+            flashButtonLabel(copyHandoffBtn, 'Copy Handoff Snapshot', 'Copied');
+        } catch (error) {
+            console.warn('copy handoff snapshot failed', error);
+            flashButtonLabel(copyHandoffBtn, 'Copy Handoff Snapshot', 'Copy failed');
+        }
+    }
+
     function loadTopReplayCase() {
         const topCase = latestReplaySuite?.runs?.[0];
         if (!topCase) {
@@ -618,6 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
     copyReviewPathBtn.addEventListener('click', copyReviewPath);
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
     copyReviewPackBtn.addEventListener('click', copyReviewPackSummary);
+    copyHandoffBtn.addEventListener('click', copyHandoffSnapshot);
     copyTopReplayBtn.addEventListener('click', copyTopReplaySummary);
     loadReplayBtn.addEventListener('click', loadTopReplayCase);
 });
