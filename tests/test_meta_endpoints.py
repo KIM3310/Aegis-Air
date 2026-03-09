@@ -30,6 +30,7 @@ def test_engine_health_and_meta():
     meta = client.get("/api/meta")
     runtime_brief = client.get("/api/runtime/brief")
     review_pack = client.get("/api/review-pack")
+    replay_summary = client.get("/api/evals/replays/summary")
     schema = client.get("/api/schema/report")
 
     assert health.status_code == 200
@@ -38,6 +39,7 @@ def test_engine_health_and_meta():
     assert health.json()["links"]["runtime_brief"] == "/api/runtime/brief"
     assert health.json()["links"]["review_pack"] == "/api/review-pack"
     assert health.json()["links"]["report_schema"] == "/api/schema/report"
+    assert health.json()["links"]["replay_summary"] == "/api/evals/replays/summary"
     assert health.json()["diagnostics"]["live_loop_ready"] is True
     assert health.json()["diagnostics"]["replay_eval_ready"] is True
     assert "runtime-brief-surface" in health.json()["capabilities"]
@@ -54,6 +56,7 @@ def test_engine_health_and_meta():
     assert body["diagnostics"]["llm_mode"] == "local-ollama-with-deterministic-fallback"
     assert body["report_contract"]["schema"] == "aegis-air-incident-report-v1"
     assert "/api/chaos/trigger" in body["routes"]
+    assert "/api/evals/replays/summary" in body["routes"]
     assert "/api/evals/replays" in body["routes"]
     assert "/api/incidents/report" in body["routes"]
     assert "/api/runtime/brief" in body["routes"]
@@ -66,6 +69,7 @@ def test_engine_health_and_meta():
     assert brief["readiness_contract"] == "aegis-air-runtime-brief-v1"
     assert brief["report_contract"]["schema"] == "aegis-air-incident-report-v1"
     assert brief["replay_summary"]["cases"] == 4
+    assert any(item["href"] == "/api/evals/replays/summary" for item in brief["proof_assets"])
     assert isinstance(brief["review_flow"], list)
     assert isinstance(brief["target_service"], dict)
 
@@ -74,9 +78,17 @@ def test_engine_health_and_meta():
     assert pack["readiness_contract"] == "aegis-air-review-pack-v1"
     assert pack["handoff_contract"]["schema"] == "aegis-air-incident-report-v1"
     assert "/api/review-pack" in pack["proof_bundle"]["review_endpoints"]
+    assert "/api/evals/replays/summary" in pack["proof_bundle"]["review_endpoints"]
     assert isinstance(pack["review_sequence"], list)
     assert len(pack["two_minute_review"]) == 4
     assert pack["proof_assets"][0]["href"] == "/health"
+    assert pack["links"]["replay_summary"] == "/api/evals/replays/summary"
+
+    assert replay_summary.status_code == 200
+    replay_summary_body = replay_summary.json()
+    assert replay_summary_body["schema"] == "aegis-air-replay-summary-v1"
+    assert replay_summary_body["summary"]["visible_runs"] == 4
+    assert len(replay_summary_body["spotlight_runs"]) >= 1
 
     assert schema.status_code == 200
     schema_body = schema.json()
@@ -160,6 +172,23 @@ def test_replay_eval_summary():
     assert body["summary"]["taxonomy_coverage_pct"] == 100.0
     assert len(body["runs"]) == 4
     assert "dependency-outage" in body["failure_taxonomy"]
+
+
+def test_replay_eval_review_summary_filters():
+    client = TestClient(ENGINE.app)
+
+    response = client.get("/api/evals/replays/summary?failure_bucket=auth-regression&min_score_pct=90")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["schema"] == "aegis-air-replay-summary-v1"
+    assert body["filters"]["failure_bucket"] == "auth-regression"
+    assert body["filters"]["min_score_pct"] == 90.0
+    assert body["summary"]["visible_runs"] == 1
+    assert body["spotlight_runs"][0]["failure_bucket"] == "auth-regression"
+
+    invalid = client.get("/api/evals/replays/summary?failure_bucket=bad-bucket")
+    assert invalid.status_code == 400
 
 
 def test_replay_metadata_endpoint():
