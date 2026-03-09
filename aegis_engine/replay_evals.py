@@ -154,8 +154,12 @@ def _percentile(values: list[int], ratio: float) -> int:
     return ordered[index]
 
 
-def _build_metrics_snapshot(raw_metrics: dict[str, Any] | None, probe_observations: list[dict[str, Any]]) -> dict[str, Any]:
+def _build_metrics_snapshot(
+    raw_metrics: dict[str, Any] | None,
+    probe_observations: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
     raw_metrics = raw_metrics or {}
+    probe_observations = probe_observations or []
     latencies = [_to_int(item.get("latency_ms")) for item in probe_observations if _to_int(item.get("latency_ms")) > 0]
     success_count = sum(1 for item in probe_observations if _to_int(item.get("status_code"), 200) < 400 and item.get("outcome") != "error")
     error_count = sum(1 for item in probe_observations if _to_int(item.get("status_code")) >= 400 or item.get("outcome") == "error")
@@ -384,7 +388,7 @@ def format_report_text(report: dict[str, Any]) -> str:
 
 
 def build_structured_report(payload: dict[str, Any]) -> dict[str, Any]:
-    probe_observations = deepcopy(payload.get("probe_observations", []))
+    probe_observations = deepcopy(payload.get("probe_observations") or [])
     metrics = _build_metrics_snapshot(payload.get("metrics"), probe_observations)
     status_code = _to_int(payload.get("status_code"), 500)
     error_details = str(payload.get("error_details", "")).strip()

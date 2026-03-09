@@ -37,6 +37,14 @@ OLLAMA_URL = os.getenv("AEGIS_AIR_OLLAMA_URL", "http://localhost:11434/api/gener
 MODEL_NAME = os.getenv("AEGIS_AIR_MODEL", "phi3")
 TARGET_API_URL = os.getenv("AEGIS_AIR_TARGET_API_URL", "http://localhost:8000/api/checkout")
 CHAOS_PROBE_COUNT = int(os.getenv("AEGIS_AIR_CHAOS_PROBE_COUNT", "10"))
+RUNTIME_TELEMETRY: dict[str, Any] = {
+    "chaos_trigger_runs": 0,
+    "incident_reports": 0,
+    "webhook_alerts": 0,
+    "last_chaos_at": None,
+    "last_incident_at": None,
+    "last_webhook_at": None,
+}
 
 
 class AlertPayload(BaseModel):
@@ -91,6 +99,31 @@ def build_incident_report_schema() -> dict[str, Any]:
             "Separate deterministic evidence from optional narrative generation.",
             "Never claim live target readiness unless the target service meta is reachable.",
         ],
+    }
+
+
+def _record_runtime_event(event_type: str) -> None:
+    if event_type == "chaos":
+        RUNTIME_TELEMETRY["chaos_trigger_runs"] += 1
+        RUNTIME_TELEMETRY["last_chaos_at"] = _utc_now()
+        return
+    if event_type == "incident":
+        RUNTIME_TELEMETRY["incident_reports"] += 1
+        RUNTIME_TELEMETRY["last_incident_at"] = _utc_now()
+        return
+    if event_type == "webhook":
+        RUNTIME_TELEMETRY["webhook_alerts"] += 1
+        RUNTIME_TELEMETRY["last_webhook_at"] = _utc_now()
+
+
+def _build_runtime_telemetry_payload() -> dict[str, Any]:
+    return {
+        "chaos_trigger_runs": RUNTIME_TELEMETRY["chaos_trigger_runs"],
+        "incident_reports": RUNTIME_TELEMETRY["incident_reports"],
+        "webhook_alerts": RUNTIME_TELEMETRY["webhook_alerts"],
+        "last_chaos_at": RUNTIME_TELEMETRY["last_chaos_at"],
+        "last_incident_at": RUNTIME_TELEMETRY["last_incident_at"],
+        "last_webhook_at": RUNTIME_TELEMETRY["last_webhook_at"],
     }
 
 
@@ -184,6 +217,7 @@ async def build_runtime_brief() -> dict[str, Any]:
         "artifacts": [
             {"label": "Engine Meta", "href": "/api/meta", "kind": "route"},
             {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
+            {"label": "Runtime Scorecard", "href": "/api/runtime/scorecard", "kind": "route"},
             {"label": "Incident Schema", "href": "/api/schema/report", "kind": "route"},
             {"label": "Replay Summary", "href": "/api/evals/replays/summary", "kind": "route"},
             {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
@@ -193,15 +227,18 @@ async def build_runtime_brief() -> dict[str, Any]:
         "proof_assets": [
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
+            {"label": "Runtime Scorecard", "href": "/api/runtime/scorecard", "kind": "route"},
             {"label": "Review Pack", "href": "/api/review-pack", "kind": "route"},
             {"label": "Replay Summary", "href": "/api/evals/replays/summary", "kind": "route"},
             {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
         ],
+        "runtime_telemetry": _build_runtime_telemetry_payload(),
         "target_service": target_service,
         "routes": [
             "/health",
             "/api/meta",
             "/api/runtime/brief",
+            "/api/runtime/scorecard",
             "/api/schema/report",
             "/api/chaos/trigger",
             "/api/incidents/report",
@@ -234,6 +271,7 @@ async def build_review_pack() -> dict[str, Any]:
                 "/health",
                 "/api/meta",
                 "/api/runtime/brief",
+                "/api/runtime/scorecard",
                 "/api/review-pack",
                 "/api/schema/report",
                 "/api/evals/replays/summary",
@@ -264,10 +302,67 @@ async def build_review_pack() -> dict[str, Any]:
             "health": "/health",
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
             "review_pack": "/api/review-pack",
             "report_schema": "/api/schema/report",
             "replay_summary": "/api/evals/replays/summary",
             "replay_evals": "/api/evals/replays",
+        },
+    }
+
+
+async def build_runtime_scorecard() -> dict[str, Any]:
+    replay_suite = run_replay_suite()
+    target_service = await _fetch_target_service_meta()
+    telemetry = _build_runtime_telemetry_payload()
+    total_events = (
+        telemetry["chaos_trigger_runs"]
+        + telemetry["incident_reports"]
+        + telemetry["webhook_alerts"]
+    )
+
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        "schema": "aegis-air-runtime-scorecard-v1",
+        "runtime": {
+            "mode": "air-gapped-local-first",
+            "llm_mode": build_engine_diagnostics()["llm_mode"],
+            "route_count": 11,
+            "target_meta_reachable": target_service.get("status") == "ok",
+        },
+        "telemetry": telemetry,
+        "replay_scorecard": {
+            "score_pct": replay_suite["summary"]["score_pct"],
+            "cases": replay_suite["summary"]["cases"],
+            "taxonomy_coverage_pct": replay_suite["summary"]["taxonomy_coverage_pct"],
+            "bucket_accuracy_pct": replay_suite["summary"]["bucket_accuracy_pct"],
+        },
+        "activity": {
+            "total_runtime_events": total_events,
+            "delivery_modes": ["live-probe", "webhook-alert", "recorded-review"],
+        },
+        "recommendations": [
+            "Run replay summary before claiming incident taxonomy stability.",
+            (
+                "Target meta is reachable. Keep live-loop and replay evidence separate during handoff."
+                if target_service.get("status") == "ok"
+                else "Target meta is unreachable. Keep claims scoped to replay and local incident review surfaces."
+            ),
+            (
+                "Runtime event counters are populated. Recheck scorecard after each probe or webhook run."
+                if total_events > 0
+                else "Trigger chaos or submit a report to populate runtime telemetry before demo handoff."
+            ),
+        ],
+        "links": {
+            "health": "/health",
+            "meta": "/api/meta",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "review_pack": "/api/review-pack",
+            "replay_summary": "/api/evals/replays/summary",
         },
     }
 
@@ -417,17 +512,20 @@ async def generate_chaos_and_stream_response() -> AsyncIterator[str]:
 
 @app.get("/api/chaos/trigger")
 async def trigger_chaos_endpoint() -> StreamingResponse:
+    _record_runtime_event("chaos")
     return StreamingResponse(generate_chaos_and_stream_response(), media_type="text/event-stream")
 
 
 @app.post("/api/incidents/report")
 async def build_report_endpoint(payload: AlertPayload) -> dict[str, Any]:
+    _record_runtime_event("incident")
     report = build_structured_report(payload.model_dump())
     return {"status": "success", "report": report, "rca_report": report["rca_report"]}
 
 
 @app.post("/webhook/alert")
 async def handle_alert(payload: AlertPayload) -> dict[str, Any]:
+    _record_runtime_event("webhook")
     report = build_structured_report(payload.model_dump())
     return {
         "status": "success",
@@ -493,6 +591,11 @@ async def runtime_brief() -> dict[str, Any]:
     return await build_runtime_brief()
 
 
+@app.get("/api/runtime/scorecard")
+async def runtime_scorecard() -> dict[str, Any]:
+    return await build_runtime_scorecard()
+
+
 @app.get("/api/review-pack")
 async def review_pack() -> dict[str, Any]:
     return await build_review_pack()
@@ -520,6 +623,7 @@ def engine_meta() -> dict[str, Any]:
             "replay-summary",
             "replay-evals",
             "runtime-brief",
+            "runtime-scorecard",
             "review-pack",
             "report-schema",
             "webhook-alert-ingest",
@@ -529,6 +633,7 @@ def engine_meta() -> dict[str, Any]:
             "/health",
             "/api/meta",
             "/api/runtime/brief",
+            "/api/runtime/scorecard",
             "/api/review-pack",
             "/api/schema/report",
             "/api/chaos/trigger",
@@ -563,6 +668,7 @@ def health_check() -> dict[str, Any]:
         "links": {
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
             "review_pack": "/api/review-pack",
             "report_schema": "/api/schema/report",
             "chaos_trigger": "/api/chaos/trigger",
