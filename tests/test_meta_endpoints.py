@@ -29,6 +29,7 @@ def test_engine_health_and_meta():
     health = client.get("/health")
     meta = client.get("/api/meta")
     runtime_brief = client.get("/api/runtime/brief")
+    runtime_scorecard = client.get("/api/runtime/scorecard")
     review_pack = client.get("/api/review-pack")
     replay_summary = client.get("/api/evals/replays/summary")
     schema = client.get("/api/schema/report")
@@ -69,15 +70,25 @@ def test_engine_health_and_meta():
     assert brief["readiness_contract"] == "aegis-air-runtime-brief-v1"
     assert brief["report_contract"]["schema"] == "aegis-air-incident-report-v1"
     assert brief["replay_summary"]["cases"] == 4
+    assert brief["runtime_telemetry"]["chaos_trigger_runs"] >= 0
     assert any(item["href"] == "/api/evals/replays/summary" for item in brief["proof_assets"])
     assert isinstance(brief["review_flow"], list)
     assert isinstance(brief["target_service"], dict)
+
+    assert runtime_scorecard.status_code == 200
+    scorecard = runtime_scorecard.json()
+    assert scorecard["schema"] == "aegis-air-runtime-scorecard-v1"
+    assert scorecard["links"]["runtime_scorecard"] == "/api/runtime/scorecard"
+    assert scorecard["replay_scorecard"]["cases"] == 4
+    assert "target_meta_reachable" in scorecard["runtime"]
+    assert isinstance(scorecard["telemetry"]["incident_reports"], int)
 
     assert review_pack.status_code == 200
     pack = review_pack.json()
     assert pack["readiness_contract"] == "aegis-air-review-pack-v1"
     assert pack["handoff_contract"]["schema"] == "aegis-air-incident-report-v1"
     assert "/api/review-pack" in pack["proof_bundle"]["review_endpoints"]
+    assert "/api/runtime/scorecard" in pack["proof_bundle"]["review_endpoints"]
     assert "/api/evals/replays/summary" in pack["proof_bundle"]["review_endpoints"]
     assert isinstance(pack["review_sequence"], list)
     assert len(pack["two_minute_review"]) == 4
@@ -155,6 +166,36 @@ def test_webhook_returns_structured_report():
     assert body["report"]["failure_bucket"] == "auth-regression"
     assert body["report"]["severity"] == "SEV2"
     assert len(body["report"]["immediate_actions"]) == 3
+
+
+def test_runtime_scorecard_counts_runtime_events():
+    client = TestClient(ENGINE.app)
+
+    report_response = client.post(
+        "/api/incidents/report",
+        json={
+            "service_name": "checkout",
+            "incident_time": "2026-03-09T10:05:00Z",
+            "status_code": 503,
+            "error_details": "Checkout timed out during payment capture.",
+            "metrics": {
+                "sample_size": 8,
+                "success_count": 2,
+                "error_count": 6,
+                "error_rate": 0.75,
+                "p95_latency_ms": 2100,
+                "latency_spike_count": 4,
+            },
+        },
+    )
+    assert report_response.status_code == 200
+
+    scorecard = client.get("/api/runtime/scorecard")
+    assert scorecard.status_code == 200
+    body = scorecard.json()
+    assert body["telemetry"]["incident_reports"] >= 1
+    assert body["activity"]["total_runtime_events"] >= 1
+    assert body["links"]["review_pack"] == "/api/review-pack"
 
 
 def test_replay_eval_summary():
