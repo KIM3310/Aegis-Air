@@ -177,18 +177,24 @@ def test_replay_eval_summary():
 def test_replay_eval_review_summary_filters():
     client = TestClient(ENGINE.app)
 
-    response = client.get("/api/evals/replays/summary?failure_bucket=auth-regression&min_score_pct=90")
+    response = client.get(
+        "/api/evals/replays/summary?failure_bucket=auth-regression&severity=SEV2&min_score_pct=90"
+    )
 
     assert response.status_code == 200
     body = response.json()
     assert body["schema"] == "aegis-air-replay-summary-v1"
     assert body["filters"]["failure_bucket"] == "auth-regression"
+    assert body["filters"]["severity"] == "SEV2"
     assert body["filters"]["min_score_pct"] == 90.0
     assert body["summary"]["visible_runs"] == 1
+    assert isinstance(body["summary"]["top_failed_checks"], list)
     assert body["spotlight_runs"][0]["failure_bucket"] == "auth-regression"
 
     invalid = client.get("/api/evals/replays/summary?failure_bucket=bad-bucket")
     assert invalid.status_code == 400
+    invalid_severity = client.get("/api/evals/replays/summary?severity=SEV9")
+    assert invalid_severity.status_code == 400
 
 
 def test_replay_metadata_endpoint():
