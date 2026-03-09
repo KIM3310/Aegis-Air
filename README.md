@@ -94,6 +94,12 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 3. Read `/api/review-pack` for delivery modes, proof assets, and downstream handoff contract.
 4. Open `/api/evals/replays` before claiming live-loop readiness.
 
+## Role-Ready Artifacts
+
+- AI engineer: [`docs/solution-architecture.md`](docs/solution-architecture.md)
+- solutions architect: [`docs/solution-architecture.md`](docs/solution-architecture.md)
+- sales / solution consultant: [`docs/executive-one-pager.md`](docs/executive-one-pager.md), [`docs/discovery-guide.md`](docs/discovery-guide.md)
+
 ## Proof Assets
 
 - `/health`
