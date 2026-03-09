@@ -190,7 +190,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             "replay_cases": replay_suite["summary"]["cases"],
             "rubric_checks": replay_suite["summary"]["total_checks"],
             "frontend_surfaces": 4,
-            "api_routes": 10,
+            "api_routes": 12,
         },
         "trust_boundary": [
             "telemetry stays local to the operator environment",
@@ -224,6 +224,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             {"label": "Engine Meta", "href": "/api/meta", "kind": "route"},
             {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
             {"label": "Runtime Scorecard", "href": "/api/runtime/scorecard", "kind": "route"},
+            {"label": "Incident Command Board", "href": "/api/incident-command-board", "kind": "route"},
             {"label": "Incident Schema", "href": "/api/schema/report", "kind": "route"},
             {"label": "Replay Summary", "href": "/api/evals/replays/summary", "kind": "route"},
             {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
@@ -234,6 +235,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
             {"label": "Runtime Scorecard", "href": "/api/runtime/scorecard", "kind": "route"},
+            {"label": "Incident Command Board", "href": "/api/incident-command-board", "kind": "route"},
             {"label": "Review Pack", "href": "/api/review-pack", "kind": "route"},
             {"label": "Replay Summary", "href": "/api/evals/replays/summary", "kind": "route"},
             {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
@@ -246,6 +248,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             "/api/meta",
             "/api/runtime/brief",
             "/api/runtime/scorecard",
+            "/api/incident-command-board",
             "/api/schema/report",
             "/api/chaos/trigger",
             "/api/incidents/report",
@@ -279,6 +282,7 @@ async def build_review_pack() -> dict[str, Any]:
                 "/api/meta",
                 "/api/runtime/brief",
                 "/api/runtime/scorecard",
+                "/api/incident-command-board",
                 "/api/review-pack",
                 "/api/schema/report",
                 "/api/evals/replays/summary",
@@ -299,6 +303,7 @@ async def build_review_pack() -> dict[str, Any]:
             "Confirm /health and /api/meta before claiming live target readiness.",
             "Read /api/runtime/brief for replay score and trust boundary.",
             "Read /api/review-pack for downstream handoff contract and review endpoints.",
+            "Use /api/incident-command-board to prioritize replay risks before sharing RCA output.",
             "Run live or recorded incident review only after schema and replay evidence align.",
         ],
         "two_minute_review": runtime_brief["two_minute_review"],
@@ -310,6 +315,7 @@ async def build_review_pack() -> dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "runtime_scorecard": "/api/runtime/scorecard",
+            "incident_command_board": "/api/incident-command-board",
             "review_pack": "/api/review-pack",
             "report_schema": "/api/schema/report",
             "replay_summary": "/api/evals/replays/summary",
@@ -337,7 +343,7 @@ async def build_runtime_scorecard() -> dict[str, Any]:
         "runtime": {
             "mode": "air-gapped-local-first",
             "llm_mode": build_engine_diagnostics()["llm_mode"],
-            "route_count": 11,
+            "route_count": 12,
             "target_meta_reachable": target_service.get("status") == "ok",
         },
         "telemetry": telemetry,
@@ -375,7 +381,79 @@ async def build_runtime_scorecard() -> dict[str, Any]:
             "runtime_brief": "/api/runtime/brief",
             "runtime_scorecard": "/api/runtime/scorecard",
             "review_pack": "/api/review-pack",
+            "incident_command_board": "/api/incident-command-board",
             "replay_summary": "/api/evals/replays/summary",
+        },
+    }
+
+
+async def build_incident_command_board(
+    *,
+    severity: str | None = None,
+    failure_bucket: str | None = None,
+    min_score_pct: float | None = None,
+) -> dict[str, Any]:
+    replay_summary = build_replay_summary(
+        severity=severity,
+        failure_bucket=failure_bucket,
+        min_score_pct=min_score_pct,
+    )
+    replay_suite = run_replay_suite()
+    target_service = await _fetch_target_service_meta()
+    severity_rank = {"SEV1": 0, "SEV2": 1, "SEV3": 2}
+
+    visible_case_ids = {item["case_id"] for item in replay_summary["spotlight_runs"]}
+    visible_runs = [
+        run for run in replay_suite["runs"] if run["case_id"] in visible_case_ids
+    ]
+    prioritized_runs = sorted(
+        visible_runs,
+        key=lambda run: (
+            severity_rank.get(run["severity"], 99),
+            float(run["score_pct"]),
+            str(run["case_id"]),
+        ),
+    )
+
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        "contract_version": "aegis-air-incident-command-board-v1",
+        "filters": replay_summary["filters"],
+        "summary": {
+            "visible_runs": replay_summary["summary"]["visible_runs"],
+            "critical_runs": len([run for run in prioritized_runs if run["severity"] == "SEV1"]),
+            "attention_runs": len([run for run in prioritized_runs if float(run["score_pct"]) < 100.0]),
+            "target_meta_reachable": target_service.get("status") == "ok",
+            "avg_score_pct": replay_summary["summary"]["avg_score_pct"],
+        },
+        "items": [
+            {
+                "case_id": run["case_id"],
+                "title": run["title"],
+                "severity": run["severity"],
+                "failure_bucket": run["failure_bucket"],
+                "score_pct": run["score_pct"],
+                "failed_checks": [check["name"] for check in run["checks"] if not check["passed"]],
+                "next_action": run["report"]["immediate_actions"][0],
+                "summary": run["report"]["summary"],
+            }
+            for run in prioritized_runs
+        ],
+        "review_actions": [
+            "Start with SEV1 or low-score replay cases before trusting the live target loop.",
+            "Keep target reachability separate from replay accuracy when making incident claims.",
+            "Use /api/runtime/scorecard and /api/review-pack to pair runtime posture with replay evidence.",
+        ],
+        "links": {
+            "health": "/health",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "incident_command_board": "/api/incident-command-board",
+            "review_pack": "/api/review-pack",
+            "replay_summary": "/api/evals/replays/summary",
+            "replay_evals": "/api/evals/replays",
         },
     }
 
@@ -592,6 +670,22 @@ def replay_eval_review_summary(
     }
 
 
+@app.get("/api/incident-command-board")
+async def incident_command_board(
+    min_score_pct: float | None = None,
+    failure_bucket: str | None = None,
+    severity: str | None = None,
+) -> dict[str, Any]:
+    try:
+        return await build_incident_command_board(
+            min_score_pct=min_score_pct,
+            failure_bucket=failure_bucket,
+            severity=severity,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @app.get("/api/schema/report")
 def report_schema() -> dict[str, Any]:
     return {
@@ -637,6 +731,7 @@ def engine_meta() -> dict[str, Any]:
             "chaos-trigger",
             "structured-incident-report",
             "operator-auth-boundary",
+            "incident-command-board",
             "replay-summary",
             "replay-evals",
             "runtime-brief",
@@ -651,6 +746,7 @@ def engine_meta() -> dict[str, Any]:
             "/api/meta",
             "/api/runtime/brief",
             "/api/runtime/scorecard",
+            "/api/incident-command-board",
             "/api/review-pack",
             "/api/schema/report",
             "/api/chaos/trigger",
@@ -675,6 +771,7 @@ def health_check() -> dict[str, Any]:
         "capabilities": [
             "runtime-brief-surface",
             "runtime-scorecard-surface",
+            "incident-command-board-surface",
             "review-pack-surface",
             "report-schema-surface",
             "replay-summary-surface",
@@ -689,6 +786,7 @@ def health_check() -> dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "runtime_scorecard": "/api/runtime/scorecard",
+            "incident_command_board": "/api/incident-command-board",
             "review_pack": "/api/review-pack",
             "report_schema": "/api/schema/report",
             "chaos_trigger": "/api/chaos/trigger",
