@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aegis-air"
+version = "0.1.0"
+description = "Local-first incident review engine with replay evaluation and reviewer-facing service surfaces."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Kim", email = "kim@example.com" }]
+license = { text = "MIT" }
+dependencies = [
+  "fastapi==0.121.3",
+  "uvicorn==0.27.0.post1",
+  "prometheus-fastapi-instrumentator==6.1.0",
+  "requests==2.31.0",
+  "httpx==0.26.0",
+  "pydantic==2.12.5"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0"
+]
+
+[tool.setuptools.packages.find]
+include = ["aegis_engine*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
