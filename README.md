@@ -98,13 +98,13 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 4. Open `/api/incident-command-board` to prioritize which replay cases need attention first.
 5. Open `/api/evals/replays` before claiming live-loop readiness.
 
-## Role-Ready Artifacts
+## Further Reading
 
-- AI engineer: [`docs/solution-architecture.md`](docs/solution-architecture.md)
-- solutions architect: [`docs/solution-architecture.md`](docs/solution-architecture.md)
-- sales / solution consultant: [`docs/executive-one-pager.md`](docs/executive-one-pager.md), [`docs/discovery-guide.md`](docs/discovery-guide.md)
+- Architecture: [`docs/solution-architecture.md`](docs/solution-architecture.md)
+- Overview: [`docs/executive-one-pager.md`](docs/executive-one-pager.md)
+- Discovery notes: [`docs/discovery-guide.md`](docs/discovery-guide.md)
 
-## Proof Assets
+## Supporting Files
 
 - `/health`
 - `/api/runtime/brief`
