@@ -6,11 +6,15 @@ Aegis-Air is a local incident review system for teams that cannot send productio
 - Review this repo as a local-first incident engine, not a hosted SaaS claim.
 - The replay suite and `/api/runtime/brief` are the canonical proof surfaces before any live-target claim.
 
-
 ## Role signals
 - **AI engineer:** local failure classification, RCA generation, and replay-backed regression checks live in one loop.
 - **Solution architect:** the repo makes air-gapped vs hosted boundaries explicit instead of hiding them behind one demo screen.
 - **Field / solutions engineer:** the review path turns one outage into a crisp proof walkthrough with routes, artifacts, and handoff copy.
+
+## Runtime vs review/demo surfaces
+- Primary runtime: `app/` is the target API, `aegis_engine/` is the local incident-analysis engine, and `frontend/` is the operator console. Start here if you want the live system.
+- Review/demo surfaces: the Cloudflare Pages demo and `docs/` exist so reviewers can inspect recorded evidence without booting the local engine.
+- Repo map: `scripts/` holds replay/verification helpers, `tests/` covers regressions, and `infra/` + `infrastructure/` contain deployment drafts.
 
 ## Product Family
 
