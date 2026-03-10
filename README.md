@@ -2,6 +2,16 @@
 
 Aegis-Air is a local incident review system for teams that cannot send production telemetry to public APIs. It probes a target service, classifies the incident locally, and returns a structured RCA with severity, failure bucket, evidence, and immediate actions. The repo also includes replay cases for regression testing.
 
+## Portfolio posture
+- Review this repo as a local-first incident engine, not a hosted SaaS claim.
+- The replay suite and `/api/runtime/brief` are the canonical proof surfaces before any live-target claim.
+
+
+## Role signals
+- **AI engineer:** local failure classification, RCA generation, and replay-backed regression checks live in one loop.
+- **Solution architect:** the repo makes air-gapped vs hosted boundaries explicit instead of hiding them behind one demo screen.
+- **Field / solutions engineer:** the review path turns one outage into a crisp proof walkthrough with routes, artifacts, and handoff copy.
+
 ## Product Family
 
 Aegis-Air is the local-first / air-gapped engine in the broader `Aegis` incident-analysis product family.
