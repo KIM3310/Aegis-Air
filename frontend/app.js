@@ -36,10 +36,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyReviewPathBtn = document.getElementById('copy-review-path-btn');
     const copyReviewRoutesBtn = document.getElementById('copy-review-routes-btn');
     const copyReviewPackBtn = document.getElementById('copy-review-pack-btn');
+    const copyProofBundleBtn = document.getElementById('copy-proof-bundle-btn');
     const copyHandoffBtn = document.getElementById('copy-handoff-btn');
     const copyReadinessClaimBtn = document.getElementById('copy-readiness-claim-btn');
     const copyTopReplayBtn = document.getElementById('copy-top-replay-btn');
     const loadReplayBtn = document.getElementById('load-replay-btn');
+    const reviewpackHotkeys = document.getElementById('reviewpack-hotkeys');
 
     const DEMO_REPLAY_URL = './demo-data/replay-suite.json';
     const DEMO_REPORT_URL = './demo-data/sample-report.json';
@@ -451,6 +453,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function copyProofBundle() {
+        const artifacts = Array.from(reviewPackArtifacts.querySelectorAll('li'))
+            .map((item) => item.textContent?.trim())
+            .filter(Boolean);
+        const sequence = Array.from(reviewPackSequence.querySelectorAll('li'))
+            .map((item) => item.textContent?.trim())
+            .filter(Boolean);
+        const text = [
+            'Aegis-Air proof bundle',
+            `Headline: ${reviewPackHeadline.textContent || '-'}`,
+            `Proof bundle: ${reviewPackProof.textContent || '-'}`,
+            `Replay score: ${replayScore.textContent || '-'}`,
+            '',
+            'Fast routes',
+            '- /api/runtime/brief',
+            '- /api/review-pack',
+            '- /api/evals/replays',
+            '',
+            'Artifacts',
+            ...(artifacts.length > 0 ? artifacts.map((item) => `- ${item}`) : ['- Review artifacts unavailable.']),
+            '',
+            'Review sequence',
+            ...(sequence.length > 0 ? sequence.slice(0, 5).map((item) => `- ${item}`) : ['- Review sequence unavailable.']),
+        ].join('\n');
+
+        try {
+            await copyTextToClipboard(text);
+            flashButtonLabel(copyProofBundleBtn, 'Copy Proof Bundle', 'Copied');
+        } catch (error) {
+            console.warn('copy proof bundle failed', error);
+            flashButtonLabel(copyProofBundleBtn, 'Copy Proof Bundle', 'Copy failed');
+        }
+    }
+
     function loadTopReplayCase() {
         const topCase = latestReplaySuite?.runs?.[0];
         if (!topCase) {
@@ -677,8 +713,42 @@ document.addEventListener('DOMContentLoaded', () => {
     copyReviewPathBtn.addEventListener('click', copyReviewPath);
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
     copyReviewPackBtn.addEventListener('click', copyReviewPackSummary);
+    copyProofBundleBtn.addEventListener('click', copyProofBundle);
     copyHandoffBtn.addEventListener('click', copyHandoffSnapshot);
     copyReadinessClaimBtn.addEventListener('click', copyReadinessClaim);
     copyTopReplayBtn.addEventListener('click', copyTopReplaySummary);
     loadReplayBtn.addEventListener('click', loadTopReplayCase);
+    document.addEventListener('keydown', (event) => {
+        const tag = String(event.target?.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || event.metaKey || event.ctrlKey || event.altKey) {
+            return;
+        }
+        const key = event.key.toLowerCase();
+        if (key === '?') {
+            if (reviewpackHotkeys) {
+                reviewpackHotkeys.textContent = 'Keyboard: C run review · L load top replay · R routes · P review pack · B proof bundle.';
+            }
+            return;
+        }
+        if (key === 'c') {
+            event.preventDefault();
+            chaosBtn.click();
+        }
+        if (key === 'l') {
+            event.preventDefault();
+            loadReplayBtn.click();
+        }
+        if (key === 'r') {
+            event.preventDefault();
+            copyReviewRoutesBtn.click();
+        }
+        if (key === 'p') {
+            event.preventDefault();
+            copyReviewPackBtn.click();
+        }
+        if (key === 'b') {
+            event.preventDefault();
+            copyProofBundleBtn.click();
+        }
+    });
 });
