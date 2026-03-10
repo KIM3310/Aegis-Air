@@ -14,7 +14,7 @@ Aegis-Air is a local incident review system for teams that cannot send productio
 ## Runtime vs review/demo surfaces
 - Primary runtime: `app/` is the target API, `aegis_engine/` is the local incident-analysis engine, and `frontend/` is the operator console. Start here if you want the live system.
 - Review/demo surfaces: the Cloudflare Pages demo and `docs/` exist so reviewers can inspect recorded evidence without booting the local engine.
-- Repo map: `scripts/` holds replay/verification helpers, `tests/` covers regressions, and `infra/` + `infrastructure/` contain deployment drafts.
+- Repo map: `scripts/` holds replay/verification helpers, `tests/` covers regressions, and `infra/` contains the deployment drafts and platform notes.
 
 ## Product Family
 
@@ -49,7 +49,7 @@ The Pages deployment uses recorded review data when the local FastAPI engine is 
    - Replay cases, failure taxonomy, structured RCA builder, and rubric scoring.
 4. `frontend/*`
    - Local ops console for live incident review and replay suite visibility.
-5. `infrastructure/aws/*`
+5. `infra/aws/*`
    - Terraform drafts showing how the pattern could be deployed into AWS.
 
 ## Replay Suite
