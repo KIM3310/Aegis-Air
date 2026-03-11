@@ -8,7 +8,7 @@ Aegis-Air is a local incident review system for teams that cannot send productio
 
 ## Role signals
 - **AI engineer:** local failure classification, RCA generation, and replay-backed regression checks live in one loop.
-- **Solution architect:** the repo makes air-gapped vs hosted boundaries explicit instead of hiding them behind one demo screen.
+- **Solution / cloud architect:** the repo makes air-gapped vs hosted boundaries explicit instead of hiding them behind one demo screen.
 - **Field / solutions engineer:** the review path turns one outage into a crisp proof walkthrough with routes, artifacts, and handoff copy.
 
 ## Runtime vs review/demo surfaces
