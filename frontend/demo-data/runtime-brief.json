@@ -76,7 +76,7 @@
   "target_service": {
     "status": "recorded",
     "meta_url": null,
-    "service": "dummy-ecommerce-api",
+    "service": "aegis-air-target-api",
     "diagnostics": {
       "chaos_enabled": true,
       "metrics_ready": true

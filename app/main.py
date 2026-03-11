@@ -4,12 +4,12 @@ import random
 import time
 from prometheus_fastapi_instrumentator import Instrumentator
 
-app = FastAPI(title="Dummy E-Commerce API", version="1.0")
+app = FastAPI(title="Aegis-Air Review Target API", version="1.0")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -33,14 +33,14 @@ def build_store_diagnostics():
 
 @app.get("/")
 def read_root():
-    return {"status": "ok", "service": "E-Commerce API"}
+    return {"status": "ok", "service": "aegis-air-target-api"}
 
 
 @app.get("/health")
 def health():
     return {
         "status": "ok",
-        "service": "dummy-ecommerce-api",
+        "service": "aegis-air-target-api",
         "diagnostics": build_store_diagnostics(),
         "ops_contract": {
             "schema": "ops-envelope-v1",
@@ -58,7 +58,7 @@ def health():
 def meta():
     return {
         "status": "ok",
-        "service": "dummy-ecommerce-api",
+        "service": "aegis-air-target-api",
         "version": "1.0",
         "chaos_profile": {
             "checkout_error_rate": CHECKOUT_ERROR_RATE,
