@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyReviewPackBtn = document.getElementById('copy-review-pack-btn');
     const copyProofBundleBtn = document.getElementById('copy-proof-bundle-btn');
     const copyHandoffBtn = document.getElementById('copy-handoff-btn');
+    const copyCommanderBriefBtn = document.getElementById('copy-commander-brief-btn');
     const copyReadinessClaimBtn = document.getElementById('copy-readiness-claim-btn');
     const copyTopReplayBtn = document.getElementById('copy-top-replay-btn');
     const loadReplayBtn = document.getElementById('load-replay-btn');
@@ -424,6 +425,43 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function copyCommanderBrief() {
+        const topCase = latestReplaySuite?.runs?.[0];
+        const report = topCase?.report || {};
+        const immediateActions = Array.isArray(report.immediate_actions) ? report.immediate_actions : [];
+        const evidence = Array.isArray(report.supporting_evidence) ? report.supporting_evidence : [];
+        const runtimeLinks = latestRuntimeBrief?.links
+            ? Object.entries(latestRuntimeBrief.links).slice(0, 4).map(([label, href]) => `- ${label}: ${href}`)
+            : [];
+        const text = [
+            'Aegis-Air commander brief',
+            `Runtime mode: ${runtimeMode}`,
+            `Headline: ${reviewPackHeadline.textContent || '-'}`,
+            `Proof bundle: ${reviewPackProof.textContent || '-'}`,
+            `Target boundary: ${reviewPackTarget.textContent || '-'}`,
+            `Top replay: ${topCase?.title || '-'}`,
+            `Severity: ${topCase?.severity || report.severity || '-'}`,
+            `Failure bucket: ${topCase?.failure_bucket || report.failure_bucket || '-'}`,
+            `Summary: ${report.summary || 'No summary available.'}`,
+            `Next action: ${immediateActions[0] || 'Review runtime brief and replay evidence before escalating.'}`,
+            '',
+            'Immediate actions',
+            ...(immediateActions.length > 0 ? immediateActions.slice(0, 3).map((item) => `- ${item}`) : ['- No immediate actions available.']),
+            '',
+            'Evidence',
+            ...(evidence.length > 0 ? evidence.slice(0, 3).map((item) => `- ${item}`) : ['- No evidence captured.']),
+            ...(runtimeLinks.length > 0 ? ['', 'Fast routes', ...runtimeLinks] : []),
+        ].join('\n');
+
+        try {
+            await copyTextToClipboard(text);
+            flashButtonLabel(copyCommanderBriefBtn, 'Copy Commander Brief', 'Copied');
+        } catch (error) {
+            console.warn('copy commander brief failed', error);
+            flashButtonLabel(copyCommanderBriefBtn, 'Copy Commander Brief', 'Copy failed');
+        }
+    }
+
     async function copyReadinessClaim() {
         const topCase = latestReplaySuite?.runs?.[0];
         const report = topCase?.report || {};
@@ -715,6 +753,7 @@ document.addEventListener('DOMContentLoaded', () => {
     copyReviewPackBtn.addEventListener('click', copyReviewPackSummary);
     copyProofBundleBtn.addEventListener('click', copyProofBundle);
     copyHandoffBtn.addEventListener('click', copyHandoffSnapshot);
+    copyCommanderBriefBtn.addEventListener('click', copyCommanderBrief);
     copyReadinessClaimBtn.addEventListener('click', copyReadinessClaim);
     copyTopReplayBtn.addEventListener('click', copyTopReplaySummary);
     loadReplayBtn.addEventListener('click', loadTopReplayCase);
@@ -726,7 +765,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = event.key.toLowerCase();
         if (key === '?') {
             if (reviewpackHotkeys) {
-                reviewpackHotkeys.textContent = 'Keyboard: C run review · L load top replay · R routes · P review pack · B proof bundle.';
+                reviewpackHotkeys.textContent = 'Keyboard: C run review · L load top replay · R routes · P review pack · B proof bundle · X commander brief.';
             }
             return;
         }
@@ -749,6 +788,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (key === 'b') {
             event.preventDefault();
             copyProofBundleBtn.click();
+        }
+        if (key === 'x') {
+            event.preventDefault();
+            copyCommanderBriefBtn.click();
         }
     });
 });
