@@ -132,14 +132,14 @@ def test_store_api_health_and_meta():
     meta = client.get("/meta")
 
     assert health.status_code == 200
-    assert health.json()["service"] == "dummy-ecommerce-api"
+    assert health.json()["service"] == "aegis-air-target-api"
     assert health.json()["links"]["metrics"] == "/metrics"
     assert health.json()["diagnostics"]["metrics_ready"] is True
     assert health.json()["ops_contract"]["schema"] == "ops-envelope-v1"
 
     assert meta.status_code == 200
     body = meta.json()
-    assert body["service"] == "dummy-ecommerce-api"
+    assert body["service"] == "aegis-air-target-api"
     assert body["status"] == "ok"
     assert body["chaos_profile"]["checkout_error_rate"] == 0.30
     assert body["diagnostics"]["chaos_enabled"] is True
