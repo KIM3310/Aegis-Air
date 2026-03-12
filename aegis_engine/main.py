@@ -172,8 +172,96 @@ async def _fetch_target_service_meta() -> dict[str, Any]:
     }
 
 
+def build_replay_drift_board() -> dict[str, Any]:
+    replay_suite = run_replay_suite()
+    metadata_by_id = {
+        item["id"]: item for item in build_replay_metadata()
+    }
+    persisted = build_runtime_store_summary(10)
+    severity_rank = {"SEV1": 0, "SEV2": 1, "SEV3": 2}
+
+    items: list[dict[str, Any]] = []
+    for run in replay_suite["runs"]:
+        metadata = metadata_by_id.get(run["case_id"], {})
+        drift_signals: list[str] = []
+        if float(metadata.get("error_rate_pct", 0.0)) >= 30.0:
+            drift_signals.append("elevated_error_rate")
+        if int(metadata.get("p95_latency_ms", 0) or 0) >= 1000:
+            drift_signals.append("high_p95_latency")
+        if str(run.get("severity") or "") == "SEV1":
+            drift_signals.append("sev1_case")
+        if float(run.get("score_pct", 0.0)) < 100.0:
+            drift_signals.append("regression_gap")
+
+        items.append(
+            {
+                "case_id": run["case_id"],
+                "title": run["title"],
+                "severity": run["severity"],
+                "failure_bucket": run["failure_bucket"],
+                "score_pct": run["score_pct"],
+                "error_rate_pct": float(metadata.get("error_rate_pct", 0.0) or 0.0),
+                "p95_latency_ms": int(metadata.get("p95_latency_ms", 0) or 0),
+                "sample_size": int(metadata.get("sample_size", 0) or 0),
+                "drift_signals": drift_signals,
+                "next_action": run["report"]["immediate_actions"][0],
+                "summary": run["report"]["summary"],
+            }
+        )
+
+    items = sorted(
+        items,
+        key=lambda item: (
+            severity_rank.get(item["severity"], 99),
+            -float(item["error_rate_pct"]),
+            -int(item["p95_latency_ms"]),
+            str(item["case_id"]),
+        ),
+    )
+    bucket_counts: dict[str, int] = {}
+    for item in items:
+        bucket = str(item["failure_bucket"])
+        bucket_counts[bucket] = bucket_counts.get(bucket, 0) + 1
+    top_failure_bucket = (
+        sorted(bucket_counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+        if bucket_counts
+        else None
+    )
+
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        "schema": "aegis-air-replay-drift-board-v1",
+        "summary": {
+            "visible_runs": len(items),
+            "top_failure_bucket": top_failure_bucket,
+            "highest_error_rate_pct": max((item["error_rate_pct"] for item in items), default=0.0),
+            "highest_p95_latency_ms": max((item["p95_latency_ms"] for item in items), default=0),
+            "attention_runs": sum(1 for item in items if item["drift_signals"]),
+            "runtime_event_count": int(persisted["persisted_count"]),
+        },
+        "items": items,
+        "review_actions": [
+            "Use the drift board to separate stable replay buckets from the cases that still need operator attention.",
+            "Keep replay drift evidence distinct from live target reachability when explaining readiness.",
+            "Pair the drift board with the runtime scorecard before sharing a handoff-ready incident claim.",
+        ],
+        "links": {
+            "health": "/health",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "incident_command_board": "/api/incident-command-board",
+            "replay_drift_board": "/api/replay-drift-board",
+            "replay_summary": "/api/evals/replays/summary",
+            "replay_evals": "/api/evals/replays",
+        },
+    }
+
+
 async def build_runtime_brief() -> dict[str, Any]:
     replay_suite = run_replay_suite()
+    drift_board = build_replay_drift_board()
     target_service = await _fetch_target_service_meta()
 
     return {
@@ -189,8 +277,8 @@ async def build_runtime_brief() -> dict[str, Any]:
         "evidence_counts": {
             "replay_cases": replay_suite["summary"]["cases"],
             "rubric_checks": replay_suite["summary"]["total_checks"],
-            "frontend_surfaces": 4,
-            "api_routes": 12,
+            "frontend_surfaces": 5,
+            "api_routes": 13,
         },
         "trust_boundary": [
             "telemetry stays local to the operator environment",
@@ -224,6 +312,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             {"label": "Engine Meta", "href": "/api/meta", "kind": "route"},
             {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
             {"label": "Runtime Scorecard", "href": "/api/runtime/scorecard", "kind": "route"},
+            {"label": "Replay Drift Board", "href": "/api/replay-drift-board", "kind": "route"},
             {"label": "Incident Command Board", "href": "/api/incident-command-board", "kind": "route"},
             {"label": "Incident Schema", "href": "/api/schema/report", "kind": "route"},
             {"label": "Replay Summary", "href": "/api/evals/replays/summary", "kind": "route"},
@@ -235,12 +324,14 @@ async def build_runtime_brief() -> dict[str, Any]:
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
             {"label": "Runtime Scorecard", "href": "/api/runtime/scorecard", "kind": "route"},
+            {"label": "Replay Drift Board", "href": "/api/replay-drift-board", "kind": "route"},
             {"label": "Incident Command Board", "href": "/api/incident-command-board", "kind": "route"},
             {"label": "Review Pack", "href": "/api/review-pack", "kind": "route"},
             {"label": "Replay Summary", "href": "/api/evals/replays/summary", "kind": "route"},
             {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
         ],
         "runtime_telemetry": _build_runtime_telemetry_payload(),
+        "drift_summary": drift_board["summary"],
         "operator_auth": {"enabled": operator_token_enabled()},
         "target_service": target_service,
         "routes": [
@@ -248,6 +339,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             "/api/meta",
             "/api/runtime/brief",
             "/api/runtime/scorecard",
+            "/api/replay-drift-board",
             "/api/incident-command-board",
             "/api/schema/report",
             "/api/chaos/trigger",
@@ -257,6 +349,18 @@ async def build_runtime_brief() -> dict[str, Any]:
             "/api/evals/replays",
             "/webhook/alert",
         ],
+        "links": {
+            "health": "/health",
+            "meta": "/api/meta",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "replay_drift_board": "/api/replay-drift-board",
+            "incident_command_board": "/api/incident-command-board",
+            "review_pack": "/api/review-pack",
+            "report_schema": "/api/schema/report",
+            "replay_summary": "/api/evals/replays/summary",
+            "replay_evals": "/api/evals/replays",
+        },
     }
 
 
@@ -264,6 +368,7 @@ async def build_review_pack() -> dict[str, Any]:
     runtime_brief = await build_runtime_brief()
     report_contract = runtime_brief["report_contract"]
     replay_summary = runtime_brief["replay_summary"]
+    drift_summary = runtime_brief["drift_summary"]
     target_service = runtime_brief["target_service"]
 
     return {
@@ -276,12 +381,14 @@ async def build_review_pack() -> dict[str, Any]:
             "replay_cases": replay_summary["cases"],
             "rubric_checks": replay_summary["total_checks"],
             "score_pct": replay_summary["score_pct"],
+            "attention_runs": drift_summary["attention_runs"],
             "target_meta_reachable": target_service.get("status") == "ok",
             "review_endpoints": [
                 "/health",
                 "/api/meta",
                 "/api/runtime/brief",
                 "/api/runtime/scorecard",
+                "/api/replay-drift-board",
                 "/api/incident-command-board",
                 "/api/review-pack",
                 "/api/schema/report",
@@ -315,6 +422,7 @@ async def build_review_pack() -> dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "runtime_scorecard": "/api/runtime/scorecard",
+            "replay_drift_board": "/api/replay-drift-board",
             "incident_command_board": "/api/incident-command-board",
             "review_pack": "/api/review-pack",
             "report_schema": "/api/schema/report",
@@ -326,6 +434,7 @@ async def build_review_pack() -> dict[str, Any]:
 
 async def build_runtime_scorecard() -> dict[str, Any]:
     replay_suite = run_replay_suite()
+    drift_board = build_replay_drift_board()
     target_service = await _fetch_target_service_meta()
     telemetry = _build_runtime_telemetry_payload()
     persisted = build_runtime_store_summary(10)
@@ -343,7 +452,7 @@ async def build_runtime_scorecard() -> dict[str, Any]:
         "runtime": {
             "mode": "air-gapped-local-first",
             "llm_mode": build_engine_diagnostics()["llm_mode"],
-            "route_count": 12,
+            "route_count": 13,
             "target_meta_reachable": target_service.get("status") == "ok",
         },
         "telemetry": telemetry,
@@ -352,6 +461,10 @@ async def build_runtime_scorecard() -> dict[str, Any]:
             "cases": replay_suite["summary"]["cases"],
             "taxonomy_coverage_pct": replay_suite["summary"]["taxonomy_coverage_pct"],
             "bucket_accuracy_pct": replay_suite["summary"]["bucket_accuracy_pct"],
+        },
+        "drift": {
+            "schema": drift_board["schema"],
+            "summary": drift_board["summary"],
         },
         "activity": {
             "total_runtime_events": total_events,
@@ -380,6 +493,7 @@ async def build_runtime_scorecard() -> dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "runtime_scorecard": "/api/runtime/scorecard",
+            "replay_drift_board": "/api/replay-drift-board",
             "review_pack": "/api/review-pack",
             "incident_command_board": "/api/incident-command-board",
             "replay_summary": "/api/evals/replays/summary",
@@ -706,6 +820,11 @@ async def runtime_scorecard() -> dict[str, Any]:
     return await build_runtime_scorecard()
 
 
+@app.get("/api/replay-drift-board")
+def replay_drift_board() -> dict[str, Any]:
+    return build_replay_drift_board()
+
+
 @app.get("/api/review-pack")
 async def review_pack() -> dict[str, Any]:
     return await build_review_pack()
@@ -732,6 +851,7 @@ def engine_meta() -> dict[str, Any]:
             "structured-incident-report",
             "operator-auth-boundary",
             "incident-command-board",
+            "replay-drift-board",
             "replay-summary",
             "replay-evals",
             "runtime-brief",
@@ -746,6 +866,7 @@ def engine_meta() -> dict[str, Any]:
             "/api/meta",
             "/api/runtime/brief",
             "/api/runtime/scorecard",
+            "/api/replay-drift-board",
             "/api/incident-command-board",
             "/api/review-pack",
             "/api/schema/report",
@@ -771,6 +892,7 @@ def health_check() -> dict[str, Any]:
         "capabilities": [
             "runtime-brief-surface",
             "runtime-scorecard-surface",
+            "replay-drift-board-surface",
             "incident-command-board-surface",
             "review-pack-surface",
             "report-schema-surface",
@@ -786,6 +908,7 @@ def health_check() -> dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "runtime_scorecard": "/api/runtime/scorecard",
+            "replay_drift_board": "/api/replay-drift-board",
             "incident_command_board": "/api/incident-command-board",
             "review_pack": "/api/review-pack",
             "report_schema": "/api/schema/report",

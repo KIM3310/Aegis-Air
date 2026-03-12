@@ -254,6 +254,34 @@
             <div class="replay-cases" id="replay-cases">
                 <div class="empty-state">Loading replay cases.</div>
             </div>
+
+            <div class="report-block" style="margin-top: 1.5rem;">
+                <span class="section-label">Replay Drift Board</span>
+                <div class="replay-summary-grid">
+                    <div class="summary-card">
+                        <span class="label">Top Bucket</span>
+                        <strong id="drift-top-bucket">--</strong>
+                    </div>
+                    <div class="summary-card">
+                        <span class="label">Attention Runs</span>
+                        <strong id="drift-attention-runs">--</strong>
+                    </div>
+                    <div class="summary-card">
+                        <span class="label">Worst Score</span>
+                        <strong id="drift-worst-score">--</strong>
+                    </div>
+                    <div class="summary-card">
+                        <span class="label">Visible Runs</span>
+                        <strong id="drift-visible-runs">--</strong>
+                    </div>
+                </div>
+                <ul id="drift-review-actions" class="detail-list">
+                    <li>Loading replay drift signals.</li>
+                </ul>
+                <div class="replay-cases" id="drift-items">
+                    <div class="empty-state">Loading drift board.</div>
+                </div>
+            </div>
         </section>
     </main>
 

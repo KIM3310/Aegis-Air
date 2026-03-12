@@ -64,6 +64,7 @@ def main() -> None:
         },
     )
     scorecard = request_json("/api/runtime/scorecard")
+    drift_board = request_json("/api/replay-drift-board")
     board = request_json("/api/incident-command-board")
     print(
         json.dumps(
@@ -71,6 +72,7 @@ def main() -> None:
                 "telemetry": scorecard["telemetry"],
                 "persistence": scorecard["persistence"],
                 "operator_auth": scorecard["operator_auth"],
+                "replay_drift_board": drift_board["summary"],
                 "incident_command_board": board["summary"],
             },
             indent=2,

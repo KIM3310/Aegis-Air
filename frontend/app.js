@@ -17,6 +17,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const replaySeverityAccuracy = document.getElementById('replay-severity-accuracy');
     const replayTaxonomy = document.getElementById('replay-taxonomy');
     const replayCases = document.getElementById('replay-cases');
+    const driftTopBucket = document.getElementById('drift-top-bucket');
+    const driftAttentionRuns = document.getElementById('drift-attention-runs');
+    const driftWorstScore = document.getElementById('drift-worst-score');
+    const driftVisibleRuns = document.getElementById('drift-visible-runs');
+    const driftReviewActions = document.getElementById('drift-review-actions');
+    const driftItems = document.getElementById('drift-items');
     const readinessSource = document.getElementById('readiness-source');
     const readinessMode = document.getElementById('readiness-mode');
     const readinessScore = document.getElementById('readiness-score');
@@ -55,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let runtimeMode = 'checking';
     let latestRuntimeBrief = null;
     let latestReplaySuite = null;
+    let latestReplayDriftBoard = null;
 
     function appendToTerminal(text, type = 'system') {
         const div = document.createElement('div');
@@ -232,6 +239,89 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             replayCases.appendChild(article);
+        });
+    }
+
+    function deriveReplayDriftBoardFromReplaySuite(data) {
+        const runs = Array.isArray(data?.runs) ? data.runs : [];
+        const bucketCounts = {};
+        const items = runs
+            .map((run) => {
+                bucketCounts[run.failure_bucket] = (bucketCounts[run.failure_bucket] || 0) + 1;
+                const driftSignals = [];
+                if (run.severity === 'SEV1') driftSignals.push('sev1-case');
+                if ((run.score_pct || 0) < 100) driftSignals.push('regression-gap');
+                return {
+                    case_id: run.case_id,
+                    title: run.title,
+                    severity: run.severity,
+                    failure_bucket: run.failure_bucket,
+                    score_pct: run.score_pct || 0,
+                    drift_signals: driftSignals,
+                    next_action: run.report?.immediate_actions?.[0] || 'Review the replay evidence before sharing this incident.',
+                    summary: run.report?.summary || 'No replay summary available.',
+                };
+            })
+            .sort((left, right) => {
+                const severityRank = { SEV1: 0, SEV2: 1, SEV3: 2 };
+                return (
+                    (severityRank[left.severity] ?? 99) - (severityRank[right.severity] ?? 99) ||
+                    (left.score_pct || 0) - (right.score_pct || 0)
+                );
+            });
+
+        const topBucket = Object.entries(bucketCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '--';
+        return {
+            summary: {
+                visible_runs: items.length,
+                top_failure_bucket: topBucket,
+                attention_runs: items.filter((item) => item.drift_signals.length > 0).length,
+                worst_score_pct: items.length > 0 ? Math.min(...items.map((item) => item.score_pct || 0)) : 0,
+            },
+            items,
+            review_actions: [
+                'Use the drift board to keep the riskiest replay bucket visible before demo handoff.',
+                'Separate replay drift from live target reachability when explaining readiness.',
+                'Pair this with the review pack and scorecard before claiming incident stability.',
+            ],
+        };
+    }
+
+    function renderReplayDriftBoard(data) {
+        latestReplayDriftBoard = data;
+        const summary = data?.summary || {};
+        driftTopBucket.textContent = summary.top_failure_bucket || '--';
+        driftAttentionRuns.textContent = `${summary.attention_runs ?? 0}`;
+        driftWorstScore.textContent = typeof summary.worst_score_pct === 'number'
+            ? `${summary.worst_score_pct}%`
+            : '--';
+        driftVisibleRuns.textContent = `${summary.visible_runs ?? 0}`;
+        renderList(driftReviewActions, data?.review_actions || ['No drift review actions available.']);
+
+        driftItems.innerHTML = '';
+        const items = Array.isArray(data?.items) ? data.items : [];
+        if (items.length === 0) {
+            driftItems.innerHTML = '<div class="empty-state">No replay drift signals available.</div>';
+            return;
+        }
+
+        items.slice(0, 3).forEach((item) => {
+            const article = document.createElement('article');
+            article.className = 'replay-case';
+            article.innerHTML = `
+                <div class="replay-case__top">
+                    <h3>${item.title}</h3>
+                    <span class="mini-badge">${item.score_pct ?? '--'}%</span>
+                </div>
+                <div class="replay-case__meta">
+                    <span>${item.severity || '--'}</span>
+                    <span>${item.failure_bucket || '--'}</span>
+                    <span>${(item.drift_signals || []).join(', ') || 'stable'}</span>
+                </div>
+                <p>${item.summary || 'No summary available.'}</p>
+                <div class="replay-case__hint">${item.next_action || 'Review this replay before handoff.'}</div>
+            `;
+            driftItems.appendChild(article);
         });
     }
 
@@ -604,10 +694,29 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const { data, source } = await fetchJsonWithFallback('/api/evals/replays', DEMO_REPLAY_URL);
             renderReplaySuite(data, source);
+            return data;
         } catch (error) {
             replayRefreshState.textContent = 'Unavailable';
             replayCases.innerHTML = '<div class="empty-state">Replay cases could not be loaded.</div>';
             appendToTerminal(`[Error] Failed to load replay suite: ${error.message}`, 'critical');
+            return null;
+        }
+    }
+
+    async function loadReplayDriftBoard() {
+        try {
+            const data = await fetchJson('/api/replay-drift-board');
+            renderReplayDriftBoard(data);
+            return data;
+        } catch (_) {
+            if (latestReplaySuite) {
+                const derived = deriveReplayDriftBoardFromReplaySuite(latestReplaySuite);
+                renderReplayDriftBoard(derived);
+                return derived;
+            }
+            renderList(driftReviewActions, ['Replay drift board unavailable.']);
+            driftItems.innerHTML = '<div class="empty-state">Replay drift board unavailable.</div>';
+            return null;
         }
     }
 
@@ -746,8 +855,10 @@ document.addEventListener('DOMContentLoaded', () => {
             chaosBtn.click();
         }
     });
-    loadRuntimeBrief().then(() => loadReviewPack());
-    loadReplaySuite();
+    Promise.all([loadRuntimeBrief(), loadReplaySuite()]).then(() => {
+        loadReviewPack();
+        loadReplayDriftBoard();
+    });
     copyReviewPathBtn.addEventListener('click', copyReviewPath);
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
     copyReviewPackBtn.addEventListener('click', copyReviewPackSummary);

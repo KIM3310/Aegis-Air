@@ -31,6 +31,7 @@ def test_engine_health_and_meta():
     meta = client.get("/api/meta")
     runtime_brief = client.get("/api/runtime/brief")
     runtime_scorecard = client.get("/api/runtime/scorecard")
+    drift_board = client.get("/api/replay-drift-board")
     command_board = client.get("/api/incident-command-board")
     review_pack = client.get("/api/review-pack")
     replay_summary = client.get("/api/evals/replays/summary")
@@ -42,12 +43,14 @@ def test_engine_health_and_meta():
     assert health.json()["links"]["runtime_brief"] == "/api/runtime/brief"
     assert health.json()["links"]["review_pack"] == "/api/review-pack"
     assert health.json()["links"]["incident_command_board"] == "/api/incident-command-board"
+    assert health.json()["links"]["replay_drift_board"] == "/api/replay-drift-board"
     assert health.json()["links"]["report_schema"] == "/api/schema/report"
     assert health.json()["links"]["replay_summary"] == "/api/evals/replays/summary"
     assert health.json()["diagnostics"]["live_loop_ready"] is True
     assert health.json()["diagnostics"]["replay_eval_ready"] is True
     assert "runtime-brief-surface" in health.json()["capabilities"]
     assert "incident-command-board-surface" in health.json()["capabilities"]
+    assert "replay-drift-board-surface" in health.json()["capabilities"]
     assert "review-pack-surface" in health.json()["capabilities"]
     assert health.json()["ops_contract"]["schema"] == "ops-envelope-v1"
     assert "next_action" in health.json()["diagnostics"]
@@ -63,6 +66,7 @@ def test_engine_health_and_meta():
     assert "/api/chaos/trigger" in body["routes"]
     assert "/api/evals/replays/summary" in body["routes"]
     assert "/api/evals/replays" in body["routes"]
+    assert "/api/replay-drift-board" in body["routes"]
     assert "/api/incident-command-board" in body["routes"]
     assert "/api/incidents/report" in body["routes"]
     assert "/api/runtime/brief" in body["routes"]
@@ -75,6 +79,7 @@ def test_engine_health_and_meta():
     assert brief["readiness_contract"] == "aegis-air-runtime-brief-v1"
     assert brief["report_contract"]["schema"] == "aegis-air-incident-report-v1"
     assert brief["replay_summary"]["cases"] == 4
+    assert brief["links"]["replay_drift_board"] == "/api/replay-drift-board"
     assert brief["runtime_telemetry"]["chaos_trigger_runs"] >= 0
     assert any(item["href"] == "/api/evals/replays/summary" for item in brief["proof_assets"])
     assert isinstance(brief["review_flow"], list)
@@ -85,12 +90,22 @@ def test_engine_health_and_meta():
     assert scorecard["schema"] == "aegis-air-runtime-scorecard-v1"
     assert scorecard["links"]["runtime_scorecard"] == "/api/runtime/scorecard"
     assert scorecard["links"]["incident_command_board"] == "/api/incident-command-board"
+    assert scorecard["links"]["replay_drift_board"] == "/api/replay-drift-board"
     assert scorecard["replay_scorecard"]["cases"] == 4
+    assert scorecard["drift"]["schema"] == "aegis-air-replay-drift-board-v1"
     assert "target_meta_reachable" in scorecard["runtime"]
     assert isinstance(scorecard["telemetry"]["incident_reports"], int)
     assert scorecard["persistence"]["enabled"] is True
     assert "event_type_counts" in scorecard["persistence"]
     assert "protected_routes" in scorecard["operator_auth"]
+
+    assert drift_board.status_code == 200
+    drift = drift_board.json()
+    assert drift["schema"] == "aegis-air-replay-drift-board-v1"
+    assert drift["summary"]["visible_runs"] == 4
+    assert drift["summary"]["top_failure_bucket"]
+    assert drift["links"]["replay_drift_board"] == "/api/replay-drift-board"
+    assert len(drift["items"]) >= 1
 
     assert command_board.status_code == 200
     board = command_board.json()
@@ -105,11 +120,13 @@ def test_engine_health_and_meta():
     assert "/api/review-pack" in pack["proof_bundle"]["review_endpoints"]
     assert "/api/incident-command-board" in pack["proof_bundle"]["review_endpoints"]
     assert "/api/runtime/scorecard" in pack["proof_bundle"]["review_endpoints"]
+    assert "/api/replay-drift-board" in pack["proof_bundle"]["review_endpoints"]
     assert "/api/evals/replays/summary" in pack["proof_bundle"]["review_endpoints"]
     assert isinstance(pack["review_sequence"], list)
     assert len(pack["two_minute_review"]) == 4
     assert pack["proof_assets"][0]["href"] == "/health"
     assert pack["links"]["incident_command_board"] == "/api/incident-command-board"
+    assert pack["links"]["replay_drift_board"] == "/api/replay-drift-board"
     assert pack["links"]["replay_summary"] == "/api/evals/replays/summary"
 
     assert replay_summary.status_code == 200

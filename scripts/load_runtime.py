@@ -47,6 +47,8 @@ def main() -> None:
 
         scorecard = client.get("/api/runtime/scorecard")
         scorecard.raise_for_status()
+        drift_board = client.get("/api/replay-drift-board")
+        drift_board.raise_for_status()
         body = scorecard.json()
 
     print(
@@ -54,6 +56,7 @@ def main() -> None:
             {
                 "schema": body["schema"],
                 "telemetry": body["telemetry"],
+                "drift_board": drift_board.json()["summary"],
                 "persistence": body["persistence"],
                 "operator_auth": body["operator_auth"],
             },
