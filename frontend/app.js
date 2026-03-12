@@ -49,6 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyTopReplayBtn = document.getElementById('copy-top-replay-btn');
     const loadReplayBtn = document.getElementById('load-replay-btn');
     const reviewpackHotkeys = document.getElementById('reviewpack-hotkeys');
+    const lensGrid = document.getElementById('lens-grid');
+    const lensReviewerBtn = document.getElementById('lens-reviewer-btn');
+    const lensCommanderBtn = document.getElementById('lens-commander-btn');
+    const lensRecoveryBtn = document.getElementById('lens-recovery-btn');
 
     const DEMO_REPLAY_URL = './demo-data/replay-suite.json';
     const DEMO_REPORT_URL = './demo-data/sample-report.json';
@@ -62,6 +66,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let latestRuntimeBrief = null;
     let latestReplaySuite = null;
     let latestReplayDriftBoard = null;
+    let currentLens = 'reviewer';
+
+    const REVIEW_LENSES = {
+        reviewer: [
+            ['01 · Review path', 'Start with the pack, then read the strongest replay before you talk about the target.'],
+            ['02 · Replay proof', 'Use the highest-scoring replay as the first trust-building surface.'],
+            ['03 · Handoff', 'Copy the commander brief only after the schema-backed report reads cleanly.'],
+        ],
+        commander: [
+            ['01 · Target claim', 'Open the target boundary and top replay before escalating the incident story.'],
+            ['02 · Cmd brief', 'Copy the commander brief once severity, bucket, and evidence align.'],
+            ['03 · Proof bundle', 'Use proof routes when the incident needs a fast handoff to the next owner.'],
+        ],
+        recovery: [
+            ['01 · Replay delta', 'Use drift and replay score to explain what improved versus what is still risky.'],
+            ['02 · Delivery mode', 'Tell the reviewer whether the proof is recorded, webhook, or live-probe based.'],
+            ['03 · Load replay', 'Use Load Replay to move from summary into a concrete recovery example.'],
+        ],
+    };
 
     function appendToTerminal(text, type = 'system') {
         const div = document.createElement('div');
@@ -90,6 +113,21 @@ document.addEventListener('DOMContentLoaded', () => {
             span.textContent = item;
             target.appendChild(span);
         });
+    }
+
+    function renderLensCards() {
+        if (!lensGrid) return;
+        const cards = REVIEW_LENSES[currentLens] || REVIEW_LENSES.reviewer;
+        lensGrid.innerHTML = cards.map(([label, body]) => `
+            <article class="report-block">
+                <span class="section-label">${label}</span>
+                <p>${body}</p>
+            </article>
+        `).join('');
+        [lensReviewerBtn, lensCommanderBtn, lensRecoveryBtn].forEach((btn) => btn?.classList.remove('active'));
+        if (currentLens === 'reviewer') lensReviewerBtn?.classList.add('active');
+        if (currentLens === 'commander') lensCommanderBtn?.classList.add('active');
+        if (currentLens === 'recovery') lensRecoveryBtn?.classList.add('active');
     }
 
     async function copyTextToClipboard(text) {
@@ -859,6 +897,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadReviewPack();
         loadReplayDriftBoard();
     });
+    renderLensCards();
     copyReviewPathBtn.addEventListener('click', copyReviewPath);
     copyReviewRoutesBtn.addEventListener('click', copyReviewRoutes);
     copyReviewPackBtn.addEventListener('click', copyReviewPackSummary);
@@ -868,6 +907,9 @@ document.addEventListener('DOMContentLoaded', () => {
     copyReadinessClaimBtn.addEventListener('click', copyReadinessClaim);
     copyTopReplayBtn.addEventListener('click', copyTopReplaySummary);
     loadReplayBtn.addEventListener('click', loadTopReplayCase);
+    lensReviewerBtn?.addEventListener('click', () => { currentLens = 'reviewer'; renderLensCards(); });
+    lensCommanderBtn?.addEventListener('click', () => { currentLens = 'commander'; renderLensCards(); });
+    lensRecoveryBtn?.addEventListener('click', () => { currentLens = 'recovery'; renderLensCards(); });
     document.addEventListener('keydown', (event) => {
         const tag = String(event.target?.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'textarea' || tag === 'select' || event.metaKey || event.ctrlKey || event.altKey) {
