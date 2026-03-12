@@ -22,7 +22,7 @@
             <span class="shield">🛡️</span>
             <div>
                 <h1>Aegis-Air <span>Ops Console</span></h1>
-                <p class="header-copy">Local incident analysis for private telemetry.</p>
+                <p class="header-copy">Private telemetry stays local. Start with the review pack, then probe live only when the local engine is wired.</p>
             </div>
         </div>
         <div class="header-badges">
@@ -59,6 +59,25 @@
             </div>
 
             <div class="readiness-tags" id="readiness-tags"></div>
+
+            <div class="readiness-top-actions">
+                <div>
+                    <p class="section-label">Reviewer Quick Path</p>
+                    <p class="readiness-helper">Start with Review Path or Top Replay, then open the full pack only when you need deeper deployment proof.</p>
+                </div>
+                <div class="reviewpack-actions">
+                    <button id="copy-review-path-btn" class="secondary-btn" type="button">Review Path</button>
+                    <button id="copy-top-replay-btn" class="secondary-btn" type="button">Top Replay</button>
+                    <button id="load-replay-btn" class="secondary-btn" type="button">Load Replay</button>
+                    <button id="copy-review-routes-btn" class="secondary-btn" type="button">Routes</button>
+                    <button id="copy-review-pack-btn" class="secondary-btn" type="button">Pack</button>
+                    <button id="copy-proof-bundle-btn" class="secondary-btn" type="button">Proof Bundle</button>
+                    <button id="copy-handoff-btn" class="secondary-btn" type="button">Handoff</button>
+                    <button id="copy-commander-brief-btn" class="secondary-btn" type="button">Cmd Brief</button>
+                    <button id="copy-readiness-claim-btn" class="secondary-btn" type="button">Claim</button>
+                </div>
+                <p id="reviewpack-hotkeys" class="readiness-helper">Keyboard: R routes · P pack · B proof bundle · X commander brief · T top replay · L load replay · ? help.</p>
+            </div>
 
             <div class="readiness-grid">
                 <div class="report-block">
@@ -101,21 +120,9 @@
                             <strong id="reviewpack-target">--</strong>
                         </div>
                     </div>
-                    <div class="reviewpack-actions">
-                        <button id="copy-review-path-btn" class="secondary-btn" type="button">Copy Review Path</button>
-                        <button id="copy-review-routes-btn" class="secondary-btn" type="button">Copy Review Routes</button>
-                        <button id="copy-review-pack-btn" class="secondary-btn" type="button">Copy Review Pack</button>
-                        <button id="copy-proof-bundle-btn" class="secondary-btn" type="button">Copy Proof Bundle</button>
-                        <button id="copy-handoff-btn" class="secondary-btn" type="button">Copy Handoff Snapshot</button>
-                        <button id="copy-commander-brief-btn" class="secondary-btn" type="button">Copy Commander Brief</button>
-                        <button id="copy-readiness-claim-btn" class="secondary-btn" type="button">Copy Readiness Claim</button>
-                        <button id="copy-top-replay-btn" class="secondary-btn" type="button">Copy Top Replay</button>
-                        <button id="load-replay-btn" class="secondary-btn" type="button">Load Top Replay</button>
-                    </div>
-                    <p id="reviewpack-hotkeys" class="detail-subtle">Keyboard: C run review · L load top replay · R routes · P review pack · B proof bundle · X commander brief · ? help.</p>
                 </div>
                 <div class="report-block">
-                    <span class="section-label">Artifacts</span>
+                    <span class="section-label">Proof Assets</span>
                     <ul id="reviewpack-artifacts" class="detail-list">
                         <li>Loading review artifacts.</li>
                     </ul>
@@ -151,7 +158,7 @@
                         <span class="label">Error Rate</span>
                         <span class="value" id="metric-error">--</span>
                     </div>
-                    <p class="microcopy muted" id="reviewpack-shortcuts">Shortcuts: R routes · P pack · C claim · T top replay · L load top replay · ? help</p>
+                    <p class="microcopy muted" id="reviewpack-shortcuts">Shortcut bar: R routes · P pack · C claim · T top replay · L load replay · ? help</p>
                 </div>
 
                 <div class="ops-brief">

@@ -415,6 +415,18 @@ body {
     padding: 1rem 1.35rem 0;
 }
 
+.readiness-top-actions {
+    display: grid;
+    gap: 0.7rem;
+    padding: 1rem 1.35rem 0;
+}
+
+.readiness-helper {
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.55;
+}
+
 .readiness-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
