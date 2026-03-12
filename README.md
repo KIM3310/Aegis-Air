@@ -11,6 +11,12 @@ Aegis-Air is a local incident review system for teams that cannot send productio
 - **Solution / cloud architect:** the repo makes air-gapped vs hosted boundaries explicit instead of hiding them behind one demo screen.
 - **Field / solutions engineer:** the review path turns one outage into a crisp proof walkthrough with routes, artifacts, and handoff copy.
 
+
+## Portfolio context
+- **Portfolio family:** AI reliability and incident systems
+- **This repo's role:** local-first / air-gapped incident desk that complements the hosted and multimodal operator surfaces.
+- **Related repos:** `AegisOps`, `stage-pilot`, `ogx`
+
 ## Runtime vs review/demo surfaces
 - Primary runtime: `app/` is the target API, `aegis_engine/` is the local incident-analysis engine, and `frontend/` is the operator console. Start here if you want the real incident desk.
 - Review/demo surfaces: the Cloudflare Pages demo and `docs/` exist so reviewers can inspect recorded evidence without booting the local engine.
