@@ -82,6 +82,7 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 - `GET /health`
 - `GET /api/meta`
 - `GET /api/runtime/brief`
+- `GET /api/replay-drift-board`
 - `GET /api/review-pack`
 - `GET /api/incident-command-board`
 - `GET /api/schema/report`
@@ -97,6 +98,8 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
   - local-first readiness contract, replay score, trust boundary, target reachability
 - `GET /api/review-pack`
   - replay evidence bundle, target boundary, downstream handoff contract, and review sequence
+- `GET /api/replay-drift-board`
+  - replay drift summary for recent failure buckets, attention runs, and reviewer-facing trend comparison
 - `GET /api/incident-command-board`
   - commander-facing triage board for the riskiest replay cases, next actions, and live target reachability
 - `GET /api/schema/report`
@@ -108,9 +111,10 @@ More detail: [docs/INCIDENT_REPLAY_EVALS.md](docs/INCIDENT_REPLAY_EVALS.md)
 
 1. Open `/health` to confirm whether target meta is reachable or still demo-only.
 2. Read `/api/runtime/brief` for replay score, trust boundary, and watchouts.
-3. Read `/api/review-pack` for delivery modes, proof assets, and downstream handoff contract.
-4. Open `/api/incident-command-board` to prioritize which replay cases need attention first.
-5. Open `/api/evals/replays` before claiming live-loop readiness.
+3. Read `/api/replay-drift-board` to compare the current replay posture against recent drift/attention signals.
+4. Read `/api/review-pack` for delivery modes, proof assets, and downstream handoff contract.
+5. Open `/api/incident-command-board` to prioritize which replay cases need attention first.
+6. Open `/api/evals/replays` before claiming live-loop readiness.
 
 ## Further Reading
 
