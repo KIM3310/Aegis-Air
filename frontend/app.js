@@ -429,10 +429,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyReviewPathBtn, 'Copy Review Path', 'Copied');
+            flashButtonLabel(copyReviewPathBtn, 'Review Path', 'Copied');
         } catch (error) {
             console.warn('copy review path failed', error);
-            flashButtonLabel(copyReviewPathBtn, 'Copy Review Path', 'Copy failed');
+            flashButtonLabel(copyReviewPathBtn, 'Review Path', 'Copy failed');
         }
     }
 
@@ -451,10 +451,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyReviewRoutesBtn, 'Copy Review Routes', 'Copied');
+            flashButtonLabel(copyReviewRoutesBtn, 'Routes', 'Copied');
         } catch (error) {
             console.warn('copy review routes failed', error);
-            flashButtonLabel(copyReviewRoutesBtn, 'Copy Review Routes', 'Copy failed');
+            flashButtonLabel(copyReviewRoutesBtn, 'Routes', 'Copy failed');
         }
     }
 
@@ -480,10 +480,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyReviewPackBtn, 'Copy Review Pack', 'Copied');
+            flashButtonLabel(copyReviewPackBtn, 'Pack', 'Copied');
         } catch (error) {
             console.warn('copy review pack failed', error);
-            flashButtonLabel(copyReviewPackBtn, 'Copy Review Pack', 'Copy failed');
+            flashButtonLabel(copyReviewPackBtn, 'Pack', 'Copy failed');
         }
     }
 
@@ -508,10 +508,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyHandoffBtn, 'Copy Handoff Snapshot', 'Copied');
+            flashButtonLabel(copyHandoffBtn, 'Handoff', 'Copied');
         } catch (error) {
             console.warn('copy handoff snapshot failed', error);
-            flashButtonLabel(copyHandoffBtn, 'Copy Handoff Snapshot', 'Copy failed');
+            flashButtonLabel(copyHandoffBtn, 'Handoff', 'Copy failed');
         }
     }
 
@@ -545,10 +545,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyCommanderBriefBtn, 'Copy Commander Brief', 'Copied');
+            flashButtonLabel(copyCommanderBriefBtn, 'Cmd Brief', 'Copied');
         } catch (error) {
             console.warn('copy commander brief failed', error);
-            flashButtonLabel(copyCommanderBriefBtn, 'Copy Commander Brief', 'Copy failed');
+            flashButtonLabel(copyCommanderBriefBtn, 'Cmd Brief', 'Copy failed');
         }
     }
 
@@ -574,10 +574,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyReadinessClaimBtn, 'Copy Readiness Claim', 'Copied');
+            flashButtonLabel(copyReadinessClaimBtn, 'Claim', 'Copied');
         } catch (error) {
             console.warn('copy readiness claim failed', error);
-            flashButtonLabel(copyReadinessClaimBtn, 'Copy Readiness Claim', 'Copy failed');
+            flashButtonLabel(copyReadinessClaimBtn, 'Claim', 'Copy failed');
         }
     }
 
@@ -608,27 +608,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyProofBundleBtn, 'Copy Proof Bundle', 'Copied');
+            flashButtonLabel(copyProofBundleBtn, 'Proof Bundle', 'Copied');
         } catch (error) {
             console.warn('copy proof bundle failed', error);
-            flashButtonLabel(copyProofBundleBtn, 'Copy Proof Bundle', 'Copy failed');
+            flashButtonLabel(copyProofBundleBtn, 'Proof Bundle', 'Copy failed');
         }
     }
 
     function loadTopReplayCase() {
         const topCase = latestReplaySuite?.runs?.[0];
         if (!topCase) {
-            flashButtonLabel(loadReplayBtn, 'Load Top Replay', 'Unavailable');
+            flashButtonLabel(loadReplayBtn, 'Load Replay', 'Unavailable');
             return;
         }
         focusReplayCase(topCase);
-        flashButtonLabel(loadReplayBtn, 'Load Top Replay', 'Loaded');
+        flashButtonLabel(loadReplayBtn, 'Load Replay', 'Loaded');
     }
 
     async function copyTopReplaySummary() {
         const topCase = latestReplaySuite?.runs?.[0];
         if (!topCase) {
-            flashButtonLabel(copyTopReplayBtn, 'Copy Top Replay', 'Unavailable');
+            flashButtonLabel(copyTopReplayBtn, 'Top Replay', 'Unavailable');
             return;
         }
 
@@ -652,10 +652,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyTopReplayBtn, 'Copy Top Replay', 'Copied');
+            flashButtonLabel(copyTopReplayBtn, 'Top Replay', 'Copied');
         } catch (error) {
             console.warn('copy top replay failed', error);
-            flashButtonLabel(copyTopReplayBtn, 'Copy Top Replay', 'Copy failed');
+            flashButtonLabel(copyTopReplayBtn, 'Top Replay', 'Copy failed');
         }
     }
 
@@ -876,7 +876,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const key = event.key.toLowerCase();
         if (key === '?') {
             if (reviewpackHotkeys) {
-                reviewpackHotkeys.textContent = 'Keyboard: C run review · L load top replay · R routes · P review pack · B proof bundle · X commander brief.';
+                reviewpackHotkeys.textContent = 'Keyboard: R routes · P pack · B proof bundle · X commander brief · T top replay · L load replay.';
             }
             return;
         }
