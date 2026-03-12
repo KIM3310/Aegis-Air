@@ -123,6 +123,211 @@ body {
     gap: 1.5rem;
 }
 
+.mission-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(22rem, 0.85fr);
+    gap: 1.35rem;
+    padding: 1.35rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.mission-grid::after {
+    content: '';
+    position: absolute;
+    inset: auto -8rem -10rem auto;
+    width: 18rem;
+    height: 18rem;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(91, 192, 255, 0.18), rgba(91, 192, 255, 0));
+    pointer-events: none;
+}
+
+.mission-copy,
+.mission-stage {
+    position: relative;
+    z-index: 1;
+}
+
+.mission-copy {
+    display: grid;
+    gap: 1rem;
+    align-content: start;
+}
+
+.mission-eyebrow {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(91, 192, 255, 0.18);
+    background: rgba(91, 192, 255, 0.08);
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.mission-copy h2 {
+    font-size: clamp(2rem, 4vw, 3.35rem);
+    line-height: 0.94;
+    letter-spacing: -0.055em;
+    max-width: 12ch;
+}
+
+.mission-lead {
+    max-width: 62ch;
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1.72;
+}
+
+.mission-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+}
+
+.primary-btn,
+.mission-link {
+    text-decoration: none;
+}
+
+.primary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.82rem 1.15rem;
+    border-radius: 14px;
+    border: 1px solid rgba(91, 192, 255, 0.44);
+    background: linear-gradient(135deg, rgba(46, 163, 255, 0.24), rgba(46, 163, 255, 0.1));
+    color: var(--text);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.primary-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(91, 192, 255, 0.62);
+    background: linear-gradient(135deg, rgba(46, 163, 255, 0.34), rgba(46, 163, 255, 0.14));
+}
+
+.mission-proof-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.mission-proof-card {
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid rgba(132, 178, 220, 0.12);
+    background: rgba(4, 12, 19, 0.48);
+}
+
+.mission-proof-card strong {
+    display: block;
+    margin: 0.4rem 0 0.55rem;
+    font-size: 0.98rem;
+    letter-spacing: -0.03em;
+}
+
+.mission-proof-card p {
+    color: var(--muted);
+    font-size: 0.84rem;
+    line-height: 1.58;
+}
+
+.mission-stage {
+    display: grid;
+}
+
+.stage-shell {
+    display: grid;
+    gap: 1rem;
+    padding: 1.1rem;
+    border-radius: 24px;
+    border: 1px solid rgba(132, 178, 220, 0.12);
+    background:
+        linear-gradient(180deg, rgba(7, 16, 24, 0.9), rgba(7, 16, 24, 0.72)),
+        radial-gradient(circle at top right, rgba(91, 192, 255, 0.14), transparent 38%);
+}
+
+.stage-topline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.stage-grid {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.stage-incident-card,
+.stage-trust-card {
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid rgba(132, 178, 220, 0.12);
+    background: rgba(4, 12, 19, 0.58);
+}
+
+.stage-incident-card h3 {
+    margin: 0.45rem 0 0.55rem;
+    font-size: 1.05rem;
+    letter-spacing: -0.03em;
+}
+
+.stage-incident-card p,
+.stage-trust-card li,
+.stage-step p {
+    color: var(--muted);
+    line-height: 1.62;
+}
+
+.stage-stat-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-top: 0.95rem;
+}
+
+.stage-timeline {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.stage-step {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.85rem;
+    align-items: start;
+    padding: 0.85rem 0.95rem;
+    border-radius: 16px;
+    border: 1px solid rgba(132, 178, 220, 0.12);
+    background: rgba(4, 12, 19, 0.42);
+}
+
+.stage-step span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: rgba(91, 192, 255, 0.12);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
 .dashboard-grid {
     display: grid;
     grid-template-columns: 340px minmax(0, 1fr);
@@ -541,10 +746,12 @@ body {
 }
 
 @media (max-width: 1024px) {
+    .mission-grid,
     .dashboard-grid {
         grid-template-columns: 1fr;
     }
 
+    .mission-proof-strip,
     .analysis-stack,
     .lens-grid,
     .readiness-summary-grid,
@@ -573,6 +780,24 @@ body {
     }
 
     .metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .mission-grid {
+        padding: 1rem;
+    }
+
+    .mission-copy h2 {
+        max-width: 100%;
+    }
+
+    .mission-actions,
+    .stage-topline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .stage-stat-row {
         grid-template-columns: 1fr;
     }
 
