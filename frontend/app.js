@@ -57,7 +57,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewFocusAction = document.getElementById('review-focus-action');
     const reviewFocusRoute = document.getElementById('review-focus-route');
     const reviewFocusFreshness = document.getElementById('review-focus-freshness');
+    const reviewFocusFreshnessState = document.getElementById('review-focus-freshness-state');
     const reviewFocusFreshnessNote = document.getElementById('review-focus-freshness-note');
+    const reviewFocusFreshnessGuard = document.getElementById('review-focus-freshness-guard');
     const lensGrid = document.getElementById('lens-grid');
     const lensReviewerBtn = document.getElementById('lens-reviewer-btn');
     const lensCommanderBtn = document.getElementById('lens-commander-btn');
@@ -159,15 +161,46 @@ document.addEventListener('DOMContentLoaded', () => {
         return `Replay ${formatIsoStamp(replayStamp)} · runtime ${formatIsoStamp(runtimeStamp)}`;
     }
 
-    function buildProofFreshnessNote(run) {
-        const runtimeStamp = latestRuntimeBrief?.generated_at;
-        if (runtimeStamp) {
-            return `Proof freshness keeps replay and runtime timestamps visible before commander handoff. Runtime brief: ${formatIsoStamp(runtimeStamp)}.`;
+    function describeProofFreshness(run) {
+        const replayStamp = run?.generated_at
+            || latestReplaySuite?.generated_at
+            || latestReplayDriftBoard?.generated_at
+            || null;
+        const runtimeStamp = latestRuntimeBrief?.generated_at || null;
+        const replayTime = replayStamp ? new Date(replayStamp).getTime() : Number.NaN;
+        const runtimeTime = runtimeStamp ? new Date(runtimeStamp).getTime() : Number.NaN;
+        const now = Date.now();
+        const replayAgeMinutes = Number.isNaN(replayTime) ? null : Math.max(0, Math.round((now - replayTime) / 60000));
+        const runtimeAgeMinutes = Number.isNaN(runtimeTime) ? null : Math.max(0, Math.round((now - runtimeTime) / 60000));
+
+        if (runtimeAgeMinutes === null) {
+            return {
+                state: 'Runtime proof missing',
+                note: replayAgeMinutes === null
+                    ? 'Proof freshness keeps replay and runtime timestamps visible before commander handoff.'
+                    : 'Proof freshness keeps replay and runtime timestamps visible before commander handoff. Replay evidence is loaded, but runtime proof still needs a fresh brief.',
+                guard: 'Commander handoff stays blocked when runtime proof is stale or missing.',
+            };
         }
-        if (run?.generated_at || latestReplaySuite?.generated_at || latestReplayDriftBoard?.generated_at) {
-            return `Proof freshness keeps replay and runtime timestamps visible before commander handoff. Replay evidence is loaded, but runtime proof still needs a fresh brief.`;
+        if (runtimeAgeMinutes <= 15) {
+            return {
+                state: 'Fresh handoff window',
+                note: `Proof freshness keeps replay and runtime timestamps visible before commander handoff. Runtime brief: ${formatIsoStamp(runtimeStamp)}.`,
+                guard: 'Commander handoff can proceed once replay evidence still matches the current runtime brief.',
+            };
         }
-        return 'Proof freshness keeps replay and runtime timestamps visible before commander handoff.';
+        if (runtimeAgeMinutes <= 60) {
+            return {
+                state: `Runtime aging · ${runtimeAgeMinutes}m`,
+                note: `Proof freshness keeps replay and runtime timestamps visible before commander handoff. Runtime brief: ${formatIsoStamp(runtimeStamp)}.`,
+                guard: 'Commander handoff should re-open the runtime brief before the copy leaves the incident desk.',
+            };
+        }
+        return {
+            state: 'Runtime stale',
+            note: `Proof freshness keeps replay and runtime timestamps visible before commander handoff. Runtime brief: ${formatIsoStamp(runtimeStamp)}.`,
+            guard: 'Commander handoff stays blocked when runtime proof is stale or missing.',
+        };
     }
 
     function markReplaySelection(run) {
@@ -198,8 +231,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (reviewFocusRoute) {
             reviewFocusRoute.textContent = `Fast path: /api/evals/replays → /api/runtime/brief → ${runtimeRoute}.`;
         }
+        const freshness = describeProofFreshness(run);
         if (reviewFocusFreshness) reviewFocusFreshness.textContent = buildProofFreshnessLabel(run);
-        if (reviewFocusFreshnessNote) reviewFocusFreshnessNote.textContent = buildProofFreshnessNote(run);
+        if (reviewFocusFreshnessState) reviewFocusFreshnessState.textContent = freshness.state;
+        if (reviewFocusFreshnessNote) reviewFocusFreshnessNote.textContent = freshness.note;
+        if (reviewFocusFreshnessGuard) reviewFocusFreshnessGuard.textContent = freshness.guard;
         markReplaySelection(run);
     }
 
