@@ -193,18 +193,26 @@
                     </div>
                     <p class="readiness-helper review-focus-route" id="review-focus-route">Fast path: /api/evals/replays → /api/runtime/brief → /api/incident-command-board.</p>
                 </article>
-                <div class="reviewpack-actions">
-                    <button id="copy-review-path-btn" class="secondary-btn" type="button">Review Path</button>
-                    <button id="copy-top-replay-btn" class="secondary-btn" type="button">Top Replay</button>
-                    <button id="load-replay-btn" class="secondary-btn" type="button">Load Replay</button>
-                    <button id="copy-review-routes-btn" class="secondary-btn" type="button">Routes</button>
-                    <button id="copy-review-pack-btn" class="secondary-btn" type="button">Pack</button>
-                    <button id="copy-proof-bundle-btn" class="secondary-btn" type="button">Proof Bundle</button>
-                    <button id="copy-handoff-btn" class="secondary-btn" type="button">Handoff</button>
-                    <button id="copy-commander-brief-btn" class="secondary-btn" type="button">Cmd Brief</button>
-                    <button id="copy-readiness-claim-btn" class="secondary-btn" type="button">Claim</button>
+                <div class="reviewpack-action-stack">
+                    <div class="reviewpack-actions reviewpack-actions--primary">
+                        <button id="copy-review-path-btn" class="secondary-btn" type="button">Review Path</button>
+                        <button id="copy-top-replay-btn" class="secondary-btn" type="button">Top Replay</button>
+                        <button id="load-replay-btn" class="secondary-btn" type="button">Load Replay</button>
+                        <button id="copy-commander-brief-btn" class="secondary-btn" type="button">Commander Brief</button>
+                    </div>
+                    <details class="reviewpack-more-actions">
+                        <summary>More proof actions</summary>
+                        <p class="readiness-helper">Open the deeper copy tools only when you need route-by-route proof or a formal handoff artifact.</p>
+                        <div class="reviewpack-actions reviewpack-actions--secondary">
+                            <button id="copy-review-routes-btn" class="secondary-btn" type="button">Review Routes</button>
+                            <button id="copy-review-pack-btn" class="secondary-btn" type="button">Review Pack</button>
+                            <button id="copy-proof-bundle-btn" class="secondary-btn" type="button">Proof Bundle</button>
+                            <button id="copy-handoff-btn" class="secondary-btn" type="button">Handoff Snapshot</button>
+                            <button id="copy-readiness-claim-btn" class="secondary-btn" type="button">Readiness Claim</button>
+                        </div>
+                    </details>
                 </div>
-                <p id="reviewpack-hotkeys" class="readiness-helper">Keyboard: R routes · P pack · B proof bundle · X commander brief · T top replay · L load replay · ? help.</p>
+                <p id="reviewpack-hotkeys" class="readiness-helper">Primary keys: T top replay · L load replay · X commander brief. Open More proof actions for routes, pack, handoff, and claim copy.</p>
             </div>
 
                 <div class="readiness-grid">

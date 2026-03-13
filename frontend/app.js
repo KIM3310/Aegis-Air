@@ -533,10 +533,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyReviewRoutesBtn, 'Routes', 'Copied');
+            flashButtonLabel(copyReviewRoutesBtn, 'Review Routes', 'Copied');
         } catch (error) {
             console.warn('copy review routes failed', error);
-            flashButtonLabel(copyReviewRoutesBtn, 'Routes', 'Copy failed');
+            flashButtonLabel(copyReviewRoutesBtn, 'Review Routes', 'Copy failed');
         }
     }
 
@@ -562,10 +562,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyReviewPackBtn, 'Pack', 'Copied');
+            flashButtonLabel(copyReviewPackBtn, 'Review Pack', 'Copied');
         } catch (error) {
             console.warn('copy review pack failed', error);
-            flashButtonLabel(copyReviewPackBtn, 'Pack', 'Copy failed');
+            flashButtonLabel(copyReviewPackBtn, 'Review Pack', 'Copy failed');
         }
     }
 
@@ -590,10 +590,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyHandoffBtn, 'Handoff', 'Copied');
+            flashButtonLabel(copyHandoffBtn, 'Handoff Snapshot', 'Copied');
         } catch (error) {
             console.warn('copy handoff snapshot failed', error);
-            flashButtonLabel(copyHandoffBtn, 'Handoff', 'Copy failed');
+            flashButtonLabel(copyHandoffBtn, 'Handoff Snapshot', 'Copy failed');
         }
     }
 
@@ -627,10 +627,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyCommanderBriefBtn, 'Cmd Brief', 'Copied');
+            flashButtonLabel(copyCommanderBriefBtn, 'Commander Brief', 'Copied');
         } catch (error) {
             console.warn('copy commander brief failed', error);
-            flashButtonLabel(copyCommanderBriefBtn, 'Cmd Brief', 'Copy failed');
+            flashButtonLabel(copyCommanderBriefBtn, 'Commander Brief', 'Copy failed');
         }
     }
 
@@ -656,10 +656,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await copyTextToClipboard(text);
-            flashButtonLabel(copyReadinessClaimBtn, 'Claim', 'Copied');
+            flashButtonLabel(copyReadinessClaimBtn, 'Readiness Claim', 'Copied');
         } catch (error) {
             console.warn('copy readiness claim failed', error);
-            flashButtonLabel(copyReadinessClaimBtn, 'Claim', 'Copy failed');
+            flashButtonLabel(copyReadinessClaimBtn, 'Readiness Claim', 'Copy failed');
         }
     }
 
