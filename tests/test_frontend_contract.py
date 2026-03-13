@@ -12,6 +12,7 @@ def test_replay_focus_surface_contract() -> None:
         'id="review-focus-title"',
         'id="review-focus-route"',
         'id="review-focus-checkpoint"',
+        'id="review-focus-bucket-note"',
         'id="review-focus-freshness"',
         'id="review-focus-freshness-state"',
         'id="review-focus-freshness-note"',
@@ -22,6 +23,7 @@ def test_replay_focus_surface_contract() -> None:
         'Keep one replay case visible from proof to commander handoff.',
         'Fast path: /api/evals/replays → /api/runtime/brief → /api/incident-command-board.',
         'Replay checkpoint keeps one case key attached from evidence to commander handoff.',
+        'Bucket continuity keeps the same failure class visible while proof moves into commander handoff.',
         'Proof freshness keeps replay and runtime timestamps visible before commander handoff.',
         'Commander handoff stays blocked when runtime proof is stale or missing.',
     ]

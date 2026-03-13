@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewFocusAction = document.getElementById('review-focus-action');
     const reviewFocusRoute = document.getElementById('review-focus-route');
     const reviewFocusCheckpoint = document.getElementById('review-focus-checkpoint');
+    const reviewFocusBucketNote = document.getElementById('review-focus-bucket-note');
     const reviewFocusFreshness = document.getElementById('review-focus-freshness');
     const reviewFocusFreshnessState = document.getElementById('review-focus-freshness-state');
     const reviewFocusFreshnessNote = document.getElementById('review-focus-freshness-note');
@@ -235,6 +236,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (reviewFocusCheckpoint) {
             reviewFocusCheckpoint.textContent = `Replay checkpoint keeps ${caseKey} attached while you move from proof to ${runtimeRoute}.`;
+        }
+        if (reviewFocusBucketNote) {
+            reviewFocusBucketNote.textContent = `Bucket continuity keeps ${run?.failure_bucket || report.failure_bucket || 'the active failure class'} visible while ${caseKey} moves into commander handoff.`;
         }
         const freshness = describeProofFreshness(run);
         if (reviewFocusFreshness) reviewFocusFreshness.textContent = buildProofFreshnessLabel(run);
