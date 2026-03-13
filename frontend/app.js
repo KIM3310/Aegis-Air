@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewFocusConfidence = document.getElementById('review-focus-confidence');
     const reviewFocusAction = document.getElementById('review-focus-action');
     const reviewFocusRoute = document.getElementById('review-focus-route');
+    const reviewFocusCheckpoint = document.getElementById('review-focus-checkpoint');
     const reviewFocusFreshness = document.getElementById('review-focus-freshness');
     const reviewFocusFreshnessState = document.getElementById('review-focus-freshness-state');
     const reviewFocusFreshnessNote = document.getElementById('review-focus-freshness-note');
@@ -212,6 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderReplayFocus(run, label = 'Replay continuity') {
         const report = run?.report || {};
+        const caseKey = replayCaseKey(run) || 'top replay';
         const confidenceValue = typeof report.confidence === 'number'
             ? `${Math.round(report.confidence * 100)}%`
             : (typeof run?.confidence === 'number' ? `${Math.round(run.confidence * 100)}%` : '--');
@@ -230,6 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
             || 'Copy the commander brief after the replay summary reads cleanly.';
         if (reviewFocusRoute) {
             reviewFocusRoute.textContent = `Fast path: /api/evals/replays → /api/runtime/brief → ${runtimeRoute}.`;
+        }
+        if (reviewFocusCheckpoint) {
+            reviewFocusCheckpoint.textContent = `Replay checkpoint keeps ${caseKey} attached while you move from proof to ${runtimeRoute}.`;
         }
         const freshness = describeProofFreshness(run);
         if (reviewFocusFreshness) reviewFocusFreshness.textContent = buildProofFreshnessLabel(run);
