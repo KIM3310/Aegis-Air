@@ -662,6 +662,41 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.review-focus-rail {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem 1.05rem;
+    border-radius: 20px;
+    border: 1px solid rgba(91, 192, 255, 0.16);
+    background: linear-gradient(135deg, rgba(91, 192, 255, 0.1), rgba(7, 16, 24, 0.62));
+}
+
+.review-focus-copy {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.review-focus-copy h3 {
+    font-size: 1.02rem;
+    letter-spacing: -0.03em;
+}
+
+.review-focus-summary,
+.review-focus-route {
+    color: var(--muted);
+}
+
+.review-focus-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.review-focus-metrics .summary-card strong {
+    font-size: 1rem;
+    line-height: 1.4;
+}
+
 .reviewpack-actions {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
@@ -708,6 +743,12 @@ body {
     transform: translateY(-1px);
     border-color: rgba(91, 192, 255, 0.4);
     background: rgba(8, 18, 28, 0.82);
+}
+
+.replay-case.is-selected {
+    border-color: rgba(91, 192, 255, 0.56);
+    background: rgba(10, 24, 36, 0.92);
+    box-shadow: 0 0 0 1px rgba(91, 192, 255, 0.18) inset;
 }
 
 .replay-case__top,
@@ -798,6 +839,10 @@ body {
     }
 
     .stage-stat-row {
+        grid-template-columns: 1fr;
+    }
+
+    .review-focus-metrics {
         grid-template-columns: 1fr;
     }
 

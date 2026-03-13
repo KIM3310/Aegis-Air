@@ -171,6 +171,28 @@
                         <p>Copy the commander brief only after the schema-backed report reads cleanly.</p>
                     </article>
                 </div>
+                <article class="review-focus-rail" id="review-focus-rail">
+                    <div class="review-focus-copy">
+                        <span class="section-label" id="review-focus-label">Replay continuity</span>
+                        <h3 id="review-focus-title">Keep one replay case visible from proof to commander handoff.</h3>
+                        <p id="review-focus-summary">Start with the top replay, keep its bucket and confidence visible, then move into the command brief without losing the incident thread.</p>
+                    </div>
+                    <div class="review-focus-metrics">
+                        <div class="summary-card">
+                            <span class="label">Failure Bucket</span>
+                            <strong id="review-focus-bucket">dependency-outage</strong>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label">Confidence</span>
+                            <strong id="review-focus-confidence">86%</strong>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label">Next Move</span>
+                            <strong id="review-focus-action">Copy the commander brief after the replay summary reads cleanly.</strong>
+                        </div>
+                    </div>
+                    <p class="readiness-helper review-focus-route" id="review-focus-route">Fast path: /api/evals/replays → /api/runtime/brief → /api/incident-command-board.</p>
+                </article>
                 <div class="reviewpack-actions">
                     <button id="copy-review-path-btn" class="secondary-btn" type="button">Review Path</button>
                     <button id="copy-top-replay-btn" class="secondary-btn" type="button">Top Replay</button>

@@ -49,6 +49,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyTopReplayBtn = document.getElementById('copy-top-replay-btn');
     const loadReplayBtn = document.getElementById('load-replay-btn');
     const reviewpackHotkeys = document.getElementById('reviewpack-hotkeys');
+    const reviewFocusLabel = document.getElementById('review-focus-label');
+    const reviewFocusTitle = document.getElementById('review-focus-title');
+    const reviewFocusSummary = document.getElementById('review-focus-summary');
+    const reviewFocusBucket = document.getElementById('review-focus-bucket');
+    const reviewFocusConfidence = document.getElementById('review-focus-confidence');
+    const reviewFocusAction = document.getElementById('review-focus-action');
+    const reviewFocusRoute = document.getElementById('review-focus-route');
     const lensGrid = document.getElementById('lens-grid');
     const lensReviewerBtn = document.getElementById('lens-reviewer-btn');
     const lensCommanderBtn = document.getElementById('lens-commander-btn');
@@ -128,6 +135,41 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentLens === 'reviewer') lensReviewerBtn?.classList.add('active');
         if (currentLens === 'commander') lensCommanderBtn?.classList.add('active');
         if (currentLens === 'recovery') lensRecoveryBtn?.classList.add('active');
+    }
+
+    function replayCaseKey(run) {
+        return String(run?.id || run?.title || run?.scenario || '').trim();
+    }
+
+    function markReplaySelection(run) {
+        const activeKey = replayCaseKey(run);
+        replayCases?.querySelectorAll('.replay-case').forEach((item) => {
+            item.classList.toggle('is-selected', item.dataset.replayKey === activeKey);
+        });
+    }
+
+    function renderReplayFocus(run, label = 'Replay continuity') {
+        const report = run?.report || {};
+        const confidenceValue = typeof report.confidence === 'number'
+            ? `${Math.round(report.confidence * 100)}%`
+            : (typeof run?.confidence === 'number' ? `${Math.round(run.confidence * 100)}%` : '--');
+        const runtimeRoute = latestRuntimeBrief?.links?.incident_command_board || '/api/incident-command-board';
+        if (reviewFocusLabel) reviewFocusLabel.textContent = label;
+        if (reviewFocusTitle) reviewFocusTitle.textContent = run?.title || 'Keep one replay case visible from proof to commander handoff.';
+        if (reviewFocusSummary) {
+            reviewFocusSummary.textContent = report.summary
+                || run?.summary
+                || 'Start with the top replay, keep its bucket and confidence visible, then move into the command brief without losing the incident thread.';
+        }
+        if (reviewFocusBucket) reviewFocusBucket.textContent = run?.failure_bucket || report.failure_bucket || '--';
+        if (reviewFocusConfidence) reviewFocusConfidence.textContent = confidenceValue;
+        if (reviewFocusAction) reviewFocusAction.textContent = report.immediate_actions?.[0]
+            || run?.next_action
+            || 'Copy the commander brief after the replay summary reads cleanly.';
+        if (reviewFocusRoute) {
+            reviewFocusRoute.textContent = `Fast path: /api/evals/replays → /api/runtime/brief → ${runtimeRoute}.`;
+        }
+        markReplaySelection(run);
     }
 
     async function copyTextToClipboard(text) {
@@ -253,6 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 : Math.round(((run.passed_checks || 0) / Math.max(run.total_checks || 1, 1)) * 1000) / 10;
             const article = document.createElement('article');
             article.className = 'replay-case is-clickable';
+            article.dataset.replayKey = replayCaseKey(run);
             article.tabIndex = 0;
             article.setAttribute('role', 'button');
             article.innerHTML = `
@@ -447,6 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function focusReplayCase(run) {
         if (!run?.report) return;
         renderReport(run.report, `Replay focus · ${run.title}`);
+        renderReplayFocus(run, 'Focused replay');
         updateStatus('review', 'REPLAY FOCUS');
         appendToTerminal(`[Review] Loaded replay case "${run.title}" into the incident panel.`, 'system');
     }
