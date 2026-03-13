@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const reviewFocusConfidence = document.getElementById('review-focus-confidence');
     const reviewFocusAction = document.getElementById('review-focus-action');
     const reviewFocusRoute = document.getElementById('review-focus-route');
+    const reviewFocusFreshness = document.getElementById('review-focus-freshness');
+    const reviewFocusFreshnessNote = document.getElementById('review-focus-freshness-note');
     const lensGrid = document.getElementById('lens-grid');
     const lensReviewerBtn = document.getElementById('lens-reviewer-btn');
     const lensCommanderBtn = document.getElementById('lens-commander-btn');
@@ -141,6 +143,33 @@ document.addEventListener('DOMContentLoaded', () => {
         return String(run?.id || run?.title || run?.scenario || '').trim();
     }
 
+    function formatIsoStamp(value) {
+        if (!value) return 'pending';
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) return String(value);
+        return parsed.toISOString().replace('.000Z', 'Z');
+    }
+
+    function buildProofFreshnessLabel(run) {
+        const replayStamp = run?.generated_at
+            || latestReplaySuite?.generated_at
+            || latestReplayDriftBoard?.generated_at
+            || null;
+        const runtimeStamp = latestRuntimeBrief?.generated_at || null;
+        return `Replay ${formatIsoStamp(replayStamp)} · runtime ${formatIsoStamp(runtimeStamp)}`;
+    }
+
+    function buildProofFreshnessNote(run) {
+        const runtimeStamp = latestRuntimeBrief?.generated_at;
+        if (runtimeStamp) {
+            return `Proof freshness keeps replay and runtime timestamps visible before commander handoff. Runtime brief: ${formatIsoStamp(runtimeStamp)}.`;
+        }
+        if (run?.generated_at || latestReplaySuite?.generated_at || latestReplayDriftBoard?.generated_at) {
+            return `Proof freshness keeps replay and runtime timestamps visible before commander handoff. Replay evidence is loaded, but runtime proof still needs a fresh brief.`;
+        }
+        return 'Proof freshness keeps replay and runtime timestamps visible before commander handoff.';
+    }
+
     function markReplaySelection(run) {
         const activeKey = replayCaseKey(run);
         replayCases?.querySelectorAll('.replay-case').forEach((item) => {
@@ -169,6 +198,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (reviewFocusRoute) {
             reviewFocusRoute.textContent = `Fast path: /api/evals/replays → /api/runtime/brief → ${runtimeRoute}.`;
         }
+        if (reviewFocusFreshness) reviewFocusFreshness.textContent = buildProofFreshnessLabel(run);
+        if (reviewFocusFreshnessNote) reviewFocusFreshnessNote.textContent = buildProofFreshnessNote(run);
         markReplaySelection(run);
     }
 
@@ -321,6 +352,9 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             replayCases.appendChild(article);
         });
+        if ((data.runs || []).length > 0) {
+            renderReplayFocus(data.runs[0]);
+        }
     }
 
     function deriveReplayDriftBoardFromReplaySuite(data) {
@@ -504,6 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `Headline: ${reviewPackHeadline.textContent || '-'}`,
             `Proof bundle: ${reviewPackProof.textContent || '-'}`,
             `Target boundary: ${reviewPackTarget.textContent || '-'}`,
+            `Proof freshness: ${reviewFocusFreshness?.textContent || '-'}`,
             '',
             'Review sequence',
             ...(sequence.length > 0 ? sequence.map((item) => `- ${item}`) : ['- Review sequence unavailable']),
@@ -580,6 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `Headline: ${reviewPackHeadline.textContent || '-'}`,
             `Proof bundle: ${reviewPackProof.textContent || '-'}`,
             `Target boundary: ${reviewPackTarget.textContent || '-'}`,
+            `Proof freshness: ${reviewFocusFreshness?.textContent || '-'}`,
             `Top replay: ${topCase?.title || '-'}`,
             `Severity: ${topCase?.severity || report.severity || '-'}`,
             `Bucket: ${topCase?.failure_bucket || report.failure_bucket || '-'}`,
@@ -611,6 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `Headline: ${reviewPackHeadline.textContent || '-'}`,
             `Proof bundle: ${reviewPackProof.textContent || '-'}`,
             `Target boundary: ${reviewPackTarget.textContent || '-'}`,
+            `Proof freshness: ${reviewFocusFreshness?.textContent || '-'}`,
             `Top replay: ${topCase?.title || '-'}`,
             `Severity: ${topCase?.severity || report.severity || '-'}`,
             `Failure bucket: ${topCase?.failure_bucket || report.failure_bucket || '-'}`,
@@ -642,6 +679,7 @@ document.addEventListener('DOMContentLoaded', () => {
             `Headline: ${reviewPackHeadline.textContent || '-'}`,
             `Proof bundle: ${reviewPackProof.textContent || '-'}`,
             `Target boundary: ${reviewPackTarget.textContent || '-'}`,
+            `Proof freshness: ${reviewFocusFreshness?.textContent || '-'}`,
             `Replay score: ${replayScore.textContent || '-'}`,
             `Severity accuracy: ${replaySeverityAccuracy.textContent || '-'}`,
             `Top replay: ${topCase?.title || '-'}`,
