@@ -1,37 +1,68 @@
 # Aegis-Air Executive One-Pager
 
-## Problem
+## What it is
 
-Many teams cannot send incident telemetry to public APIs, but still need faster incident triage and review.
+Aegis-Air is a **local-first incident-review engine** for teams that cannot send production telemetry to public APIs.
 
-## What Aegis-Air changes
+It probes a target service, classifies the failure locally, and produces a structured incident report with:
+- severity
+- failure bucket
+- supporting evidence
+- operator questions
+- immediate actions
 
-- keeps incident review local-first
-- produces structured RCA with explicit severity and failure bucket
-- uses replay proof to validate quality claims before wider rollout
+## Why it matters
 
-## Buyer value
+Many incident demos break trust in restricted environments because they assume:
+- cloud-hosted inference
+- permissive data movement
+- or a fake live dashboard
 
-- safer adoption path for restricted environments
-- faster initial RCA
-- clearer handoff from local triage to operator action
+Aegis-Air is useful precisely because it does **not** assume those things.
 
-## Key metrics
+## Core value
 
-- replay pass rate
-- incident classification accuracy
-- time to first actionable RCA
-- local review readiness by target/service
-
-## Rollout
-
-1. replay-only validation
-2. local probe loop against one service
-3. expanded local incident review with downstream handoff
+- **Local-first review:** telemetry stays in the operator environment
+- **Deterministic proof:** replay cases validate severity and bucket logic before wider rollout
+- **Handoff-ready output:** schema-backed incident reports stay usable even when narrative generation is unavailable
+- **Honest review mode:** recorded-review surfaces remain explicit when the live engine is absent
 
 ## Best proof path
 
-- `/api/runtime/brief`
-- `/api/review-pack`
-- `/api/evals/replays`
-- `docs/solution-architecture.md`
+1. `GET /api/runtime/brief`
+2. `GET /api/review-pack`
+3. `GET /api/evals/replays`
+4. `GET /api/runtime/scorecard`
+5. `docs/FLAGSHIP_REVIEW_GUIDE.md`
+
+## Role fit
+
+### AI engineer
+- local classification pipeline
+- replay-backed regression proof
+- structured RCA contract with deterministic fallback
+
+### Solutions architect
+- explicit trust boundary between target, engine, replay layer, and reviewer surface
+- restricted-environment deployment discussion via `infra/`
+- clear separation of recorded review vs live probing
+
+### Field / solutions engineer
+- reviewer-first walkthrough
+- proof surfaces shaped for handoff
+- local console that preserves the incident story from replay to commander brief
+
+## Rollout path
+
+1. replay-only validation
+2. local probe loop against one target service
+3. reviewer pack + scorecard for internal trust building
+4. operator-token and deployment hardening for restricted environments
+
+## Current proof snapshot
+
+- 4 replay cases
+- 32 / 32 rubric checks passed
+- 100% severity accuracy
+- 100% failure-bucket accuracy
+- 100% taxonomy coverage

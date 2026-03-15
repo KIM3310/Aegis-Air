@@ -2,35 +2,41 @@
 
 ## Best-fit signals
 
+Use Aegis-Air when:
 - telemetry cannot leave the environment
-- operators want structured incident review without cloud-first inference
-- the buyer needs deterministic proof before enabling live probe workflows
+- operators need structured incident review without cloud-first inference
+- replay proof is required before enabling live probe workflows
+- the buyer cares about trust boundary clarity as much as model output quality
 
 ## Discovery questions
 
-1. What data must remain local?
-2. Which target service is the safest first pilot?
-3. What evidence must be preserved for downstream handoff?
+1. What incident data must remain local?
+2. Which service is the safest first target for a local probe loop?
+3. What evidence must survive into downstream handoff or postmortem?
 4. Is replay proof required before live probe adoption?
-5. Which failure buckets are most common today?
+5. Which failure buckets matter most today: outage, timeout, saturation, or auth drift?
+6. Who needs the first handoff artifact: an SRE, app owner, solutions team, or security reviewer?
 
-## Demo path
+## Fast demo path
 
 1. show `/health`
 2. show `/api/runtime/brief`
 3. show `/api/review-pack`
 4. show `/api/evals/replays`
-5. run one live incident or replay case
+5. show `/api/runtime/scorecard`
+6. run one live incident or recorded review
 
 ## Success criteria
 
-- replay path is trusted first
-- local target posture is understandable
+- replay path is trusted before live-loop claims are made
+- local target posture is understandable to a first-time reviewer
 - downstream handoff contract is explicit
 - restricted-environment trust boundary is clear
+- the reviewer can tell what is recorded proof versus live runtime evidence
 
 ## Follow-up artifacts
 
+- `docs/FLAGSHIP_REVIEW_GUIDE.md`
 - `docs/solution-architecture.md`
 - `docs/executive-one-pager.md`
 - `docs/INCIDENT_REPLAY_EVALS.md`
