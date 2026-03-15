@@ -20,6 +20,13 @@ def append_runtime_event(event: dict[str, Any]) -> None:
         handle.write(f"{json.dumps(event)}\n")
 
 
+def _parse_runtime_event(line: str) -> dict[str, Any] | None:
+    try:
+        return json.loads(line)
+    except json.JSONDecodeError:
+        return None
+
+
 def build_runtime_store_summary(limit: int = 25) -> dict[str, Any]:
     target = resolve_runtime_store_path()
     if not target.exists():
@@ -33,16 +40,20 @@ def build_runtime_store_summary(limit: int = 25) -> dict[str, Any]:
         }
 
     lines = [line.strip() for line in target.read_text(encoding="utf-8").splitlines() if line.strip()]
-    recent_events = []
-    for line in lines[-max(1, limit) :]:
-        try:
-            recent_events.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
+    recent_events = [
+        event
+        for line in lines[-max(1, limit) :]
+        if (event := _parse_runtime_event(line)) is not None
+    ]
+    all_events = [
+        event
+        for line in lines
+        if (event := _parse_runtime_event(line)) is not None
+    ]
 
     event_type_counts: dict[str, int] = {}
     last_event_at: str | None = None
-    for event in recent_events:
+    for event in all_events:
         event_type = str(event.get("event_type") or event.get("event") or "unknown")
         event_type_counts[event_type] = event_type_counts.get(event_type, 0) + 1
         at = event.get("at") or event.get("timestamp")
