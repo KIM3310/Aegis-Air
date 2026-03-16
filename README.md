@@ -24,6 +24,11 @@ Aegis-Air probes a target service, classifies the incident locally, and returns 
 - **This repo's role:** local-first proof that the reliability story still holds when public model APIs are off the table
 - **Related repos:** `stage-pilot`, `AegisOps`, `twincity-ui`
 
+## Big-Tech Elevation Track
+
+- Canonical execution plan: [`docs/BIGTECH_ELEVATION_PLAN.md`](docs/BIGTECH_ELEVATION_PLAN.md)
+- Goal: turn this repo into the canonical air-gapped incident runtime counterpart to `AegisOps`.
+
 ## Why this repo exists
 
 Most incident demos quietly assume cloud inference, permissive data movement, or a fake "live" dashboard. This repo is the opposite:
