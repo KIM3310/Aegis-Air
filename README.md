@@ -4,6 +4,26 @@ Local-first incident review engine for teams that **cannot send production telem
 
 Aegis-Air probes a target service, classifies the incident locally, and returns a structured RCA with severity, failure bucket, evidence, operator questions, and immediate actions. It also ships with a replay suite so the incident taxonomy can be reviewed and regression-tested before anyone claims live-loop readiness.
 
+## Portfolio posture
+
+- Read this repo like the restricted-environment counterpart to `AegisOps`, not like a generic incident dashboard.
+- The core proof is local-first incident classification plus replay-backed confidence, not UI gloss.
+- In the broader portfolio, this is the repo that makes the public reliability story believable for teams with hard data-boundary constraints.
+
+## Best target-team fit
+
+| Team lens | What should stand out fast | Start here |
+|---|---|---|
+| Frontier / runtime reliability | local-first trust boundary, structured RCA contract, replay proof | [`docs/FLAGSHIP_REVIEW_GUIDE.md`](docs/FLAGSHIP_REVIEW_GUIDE.md), `GET /api/runtime/brief`, `GET /api/review-pack` |
+| Big tech / SRE / infra | deterministic incident classification, explicit fallback posture, honest demo boundary | `GET /health`, `GET /api/runtime/scorecard`, `python scripts/run_replay_suite.py` |
+| Palantir / high-trust ops | operator-ready handoff artifacts, evidence-first RCA, reviewable restricted-environment workflow | `GET /api/incident-command-board`, `GET /api/schema/report`, `GET /api/evals/replays` |
+
+## Portfolio context
+
+- **Portfolio family:** incident AI, runtime safety, restricted-environment systems
+- **This repo's role:** local-first proof that the reliability story still holds when public model APIs are off the table
+- **Related repos:** `stage-pilot`, `AegisOps`, `twincity-ui`
+
 ## Why this repo exists
 
 Most incident demos quietly assume cloud inference, permissive data movement, or a fake "live" dashboard. This repo is the opposite:
