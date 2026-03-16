@@ -259,9 +259,68 @@ def build_replay_drift_board() -> dict[str, Any]:
     }
 
 
+def build_offline_deployment_pack() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        "schema": "aegis-air-offline-deployment-pack-v1",
+        "target_environment": "air-gapped-ops",
+        "headline": "Offline deployment contract for local model packaging, replay evidence, and operator install proof.",
+        "model_registry": {
+            "primary": {
+                "model_id": MODEL_NAME,
+                "delivery_mode": "ollama-local",
+                "purpose": "structured incident narrative fallback plus local RCA augmentation",
+            },
+            "deterministic_fallback": {
+                "model_id": "structured-report-builder",
+                "delivery_mode": "builtin",
+                "purpose": "schema-backed incident report generation when local narrative inference is unavailable",
+            },
+        },
+        "deployment_bundle": {
+            "artifacts": [
+                "aegis-air-engine service",
+                "frontend static bundle",
+                "replay eval fixtures",
+                "runtime store bootstrap",
+                "operator runbook",
+            ],
+            "install_steps": [
+                "Install the local model runtime and preload the primary model id.",
+                "Ship replay fixtures and verify /api/evals/replays/summary before operator access.",
+                "Expose /api/offline-deployment-pack and /api/review-pack as the review front door for sealed environments.",
+            ],
+            "verification_routes": [
+                "/health",
+                "/api/runtime/brief",
+                "/api/runtime/scorecard",
+                "/api/offline-deployment-pack",
+                "/api/review-pack",
+                "/api/evals/replays/summary",
+            ],
+        },
+        "operator_rules": [
+            "Keep local model availability separate from deterministic replay readiness.",
+            "Treat replay fixtures as a release gate, not a demo-only artifact.",
+            "Expose install proof and review routes before asking operators to trust live-loop claims.",
+        ],
+        "links": {
+            "health": "/health",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "offline_deployment_pack": "/api/offline-deployment-pack",
+            "review_pack": "/api/review-pack",
+            "replay_summary": "/api/evals/replays/summary",
+        },
+    }
+
+
 async def build_runtime_brief() -> dict[str, Any]:
     replay_suite = run_replay_suite()
     drift_board = build_replay_drift_board()
+    offline_pack = build_offline_deployment_pack()
     target_service = await _fetch_target_service_meta()
 
     return {
@@ -277,8 +336,8 @@ async def build_runtime_brief() -> dict[str, Any]:
         "evidence_counts": {
             "replay_cases": replay_suite["summary"]["cases"],
             "rubric_checks": replay_suite["summary"]["total_checks"],
-            "frontend_surfaces": 5,
-            "api_routes": 13,
+            "frontend_surfaces": 6,
+            "api_routes": 14,
         },
         "trust_boundary": [
             "telemetry stays local to the operator environment",
@@ -289,6 +348,7 @@ async def build_runtime_brief() -> dict[str, Any]:
         "review_flow": [
             "Open /health to confirm live-loop readiness and review links.",
             "Read /api/runtime/brief for trust boundary, replay score, and target reachability.",
+            "Read /api/offline-deployment-pack before packaging or deploying into sealed environments.",
             "Use the local console to run a live or recorded incident review.",
             "Validate the schema at /api/schema/report before integrating downstream handoff flows.",
         ],
@@ -312,6 +372,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             {"label": "Engine Meta", "href": "/api/meta", "kind": "route"},
             {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
             {"label": "Runtime Scorecard", "href": "/api/runtime/scorecard", "kind": "route"},
+            {"label": "Offline Deployment Pack", "href": "/api/offline-deployment-pack", "kind": "route"},
             {"label": "Replay Drift Board", "href": "/api/replay-drift-board", "kind": "route"},
             {"label": "Incident Command Board", "href": "/api/incident-command-board", "kind": "route"},
             {"label": "Incident Schema", "href": "/api/schema/report", "kind": "route"},
@@ -324,6 +385,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             {"label": "Health Surface", "href": "/health", "kind": "route"},
             {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
             {"label": "Runtime Scorecard", "href": "/api/runtime/scorecard", "kind": "route"},
+            {"label": "Offline Deployment Pack", "href": "/api/offline-deployment-pack", "kind": "route"},
             {"label": "Replay Drift Board", "href": "/api/replay-drift-board", "kind": "route"},
             {"label": "Incident Command Board", "href": "/api/incident-command-board", "kind": "route"},
             {"label": "Review Pack", "href": "/api/review-pack", "kind": "route"},
@@ -332,6 +394,10 @@ async def build_runtime_brief() -> dict[str, Any]:
         ],
         "runtime_telemetry": _build_runtime_telemetry_payload(),
         "drift_summary": drift_board["summary"],
+        "offline_deployment": {
+            "schema": offline_pack["schema"],
+            "primary_model": offline_pack["model_registry"]["primary"]["model_id"],
+        },
         "operator_auth": {"enabled": operator_token_enabled()},
         "target_service": target_service,
         "routes": [
@@ -339,6 +405,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             "/api/meta",
             "/api/runtime/brief",
             "/api/runtime/scorecard",
+            "/api/offline-deployment-pack",
             "/api/replay-drift-board",
             "/api/incident-command-board",
             "/api/schema/report",
@@ -354,6 +421,7 @@ async def build_runtime_brief() -> dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "runtime_scorecard": "/api/runtime/scorecard",
+            "offline_deployment_pack": "/api/offline-deployment-pack",
             "replay_drift_board": "/api/replay-drift-board",
             "incident_command_board": "/api/incident-command-board",
             "review_pack": "/api/review-pack",
@@ -369,6 +437,7 @@ async def build_review_pack() -> dict[str, Any]:
     report_contract = runtime_brief["report_contract"]
     replay_summary = runtime_brief["replay_summary"]
     drift_summary = runtime_brief["drift_summary"]
+    offline_pack = build_offline_deployment_pack()
     target_service = runtime_brief["target_service"]
 
     return {
@@ -388,6 +457,7 @@ async def build_review_pack() -> dict[str, Any]:
                 "/api/meta",
                 "/api/runtime/brief",
                 "/api/runtime/scorecard",
+                "/api/offline-deployment-pack",
                 "/api/replay-drift-board",
                 "/api/incident-command-board",
                 "/api/review-pack",
@@ -395,6 +465,7 @@ async def build_review_pack() -> dict[str, Any]:
                 "/api/evals/replays/summary",
                 "/api/evals/replays",
             ],
+            "offline_deployment_contract": offline_pack["schema"],
         },
         "target_boundary": {
             "status": target_service.get("status", "unavailable"),
@@ -422,6 +493,7 @@ async def build_review_pack() -> dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "runtime_scorecard": "/api/runtime/scorecard",
+            "offline_deployment_pack": "/api/offline-deployment-pack",
             "replay_drift_board": "/api/replay-drift-board",
             "incident_command_board": "/api/incident-command-board",
             "review_pack": "/api/review-pack",
@@ -452,7 +524,7 @@ async def build_runtime_scorecard() -> dict[str, Any]:
         "runtime": {
             "mode": "air-gapped-local-first",
             "llm_mode": build_engine_diagnostics()["llm_mode"],
-            "route_count": 13,
+            "route_count": 14,
             "target_meta_reachable": target_service.get("status") == "ok",
         },
         "telemetry": telemetry,
@@ -493,6 +565,7 @@ async def build_runtime_scorecard() -> dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "runtime_scorecard": "/api/runtime/scorecard",
+            "offline_deployment_pack": "/api/offline-deployment-pack",
             "replay_drift_board": "/api/replay-drift-board",
             "review_pack": "/api/review-pack",
             "incident_command_board": "/api/incident-command-board",
@@ -820,6 +893,11 @@ async def runtime_scorecard() -> dict[str, Any]:
     return await build_runtime_scorecard()
 
 
+@app.get("/api/offline-deployment-pack")
+def offline_deployment_pack() -> dict[str, Any]:
+    return build_offline_deployment_pack()
+
+
 @app.get("/api/replay-drift-board")
 def replay_drift_board() -> dict[str, Any]:
     return build_replay_drift_board()
@@ -856,6 +934,7 @@ def engine_meta() -> dict[str, Any]:
             "replay-evals",
             "runtime-brief",
             "runtime-scorecard",
+            "offline-deployment-pack",
             "review-pack",
             "report-schema",
             "webhook-alert-ingest",
@@ -866,6 +945,7 @@ def engine_meta() -> dict[str, Any]:
             "/api/meta",
             "/api/runtime/brief",
             "/api/runtime/scorecard",
+            "/api/offline-deployment-pack",
             "/api/replay-drift-board",
             "/api/incident-command-board",
             "/api/review-pack",
@@ -892,6 +972,7 @@ def health_check() -> dict[str, Any]:
         "capabilities": [
             "runtime-brief-surface",
             "runtime-scorecard-surface",
+            "offline-deployment-pack-surface",
             "replay-drift-board-surface",
             "incident-command-board-surface",
             "review-pack-surface",
@@ -908,6 +989,7 @@ def health_check() -> dict[str, Any]:
             "meta": "/api/meta",
             "runtime_brief": "/api/runtime/brief",
             "runtime_scorecard": "/api/runtime/scorecard",
+            "offline_deployment_pack": "/api/offline-deployment-pack",
             "replay_drift_board": "/api/replay-drift-board",
             "incident_command_board": "/api/incident-command-board",
             "review_pack": "/api/review-pack",

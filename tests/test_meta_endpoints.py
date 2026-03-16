@@ -31,6 +31,7 @@ def test_engine_health_and_meta():
     meta = client.get("/api/meta")
     runtime_brief = client.get("/api/runtime/brief")
     runtime_scorecard = client.get("/api/runtime/scorecard")
+    offline_deployment_pack = client.get("/api/offline-deployment-pack")
     drift_board = client.get("/api/replay-drift-board")
     command_board = client.get("/api/incident-command-board")
     review_pack = client.get("/api/review-pack")
@@ -42,6 +43,7 @@ def test_engine_health_and_meta():
     assert health.json()["links"]["meta"] == "/api/meta"
     assert health.json()["links"]["runtime_brief"] == "/api/runtime/brief"
     assert health.json()["links"]["review_pack"] == "/api/review-pack"
+    assert health.json()["links"]["offline_deployment_pack"] == "/api/offline-deployment-pack"
     assert health.json()["links"]["incident_command_board"] == "/api/incident-command-board"
     assert health.json()["links"]["replay_drift_board"] == "/api/replay-drift-board"
     assert health.json()["links"]["report_schema"] == "/api/schema/report"
@@ -66,6 +68,7 @@ def test_engine_health_and_meta():
     assert "/api/chaos/trigger" in body["routes"]
     assert "/api/evals/replays/summary" in body["routes"]
     assert "/api/evals/replays" in body["routes"]
+    assert "/api/offline-deployment-pack" in body["routes"]
     assert "/api/replay-drift-board" in body["routes"]
     assert "/api/incident-command-board" in body["routes"]
     assert "/api/incidents/report" in body["routes"]
@@ -79,9 +82,12 @@ def test_engine_health_and_meta():
     assert brief["readiness_contract"] == "aegis-air-runtime-brief-v1"
     assert brief["report_contract"]["schema"] == "aegis-air-incident-report-v1"
     assert brief["replay_summary"]["cases"] == 4
+    assert brief["offline_deployment"]["schema"] == "aegis-air-offline-deployment-pack-v1"
     assert brief["links"]["replay_drift_board"] == "/api/replay-drift-board"
+    assert brief["links"]["offline_deployment_pack"] == "/api/offline-deployment-pack"
     assert brief["runtime_telemetry"]["chaos_trigger_runs"] >= 0
     assert any(item["href"] == "/api/evals/replays/summary" for item in brief["proof_assets"])
+    assert any(item["href"] == "/api/offline-deployment-pack" for item in brief["proof_assets"])
     assert isinstance(brief["review_flow"], list)
     assert isinstance(brief["target_service"], dict)
 
@@ -90,6 +96,7 @@ def test_engine_health_and_meta():
     assert scorecard["schema"] == "aegis-air-runtime-scorecard-v1"
     assert scorecard["links"]["runtime_scorecard"] == "/api/runtime/scorecard"
     assert scorecard["links"]["incident_command_board"] == "/api/incident-command-board"
+    assert scorecard["links"]["offline_deployment_pack"] == "/api/offline-deployment-pack"
     assert scorecard["links"]["replay_drift_board"] == "/api/replay-drift-board"
     assert scorecard["replay_scorecard"]["cases"] == 4
     assert scorecard["drift"]["schema"] == "aegis-air-replay-drift-board-v1"
@@ -118,6 +125,8 @@ def test_engine_health_and_meta():
     assert pack["readiness_contract"] == "aegis-air-review-pack-v1"
     assert pack["handoff_contract"]["schema"] == "aegis-air-incident-report-v1"
     assert "/api/review-pack" in pack["proof_bundle"]["review_endpoints"]
+    assert "/api/offline-deployment-pack" in pack["proof_bundle"]["review_endpoints"]
+    assert pack["proof_bundle"]["offline_deployment_contract"] == "aegis-air-offline-deployment-pack-v1"
     assert "/api/incident-command-board" in pack["proof_bundle"]["review_endpoints"]
     assert "/api/runtime/scorecard" in pack["proof_bundle"]["review_endpoints"]
     assert "/api/replay-drift-board" in pack["proof_bundle"]["review_endpoints"]
@@ -125,7 +134,9 @@ def test_engine_health_and_meta():
     assert isinstance(pack["review_sequence"], list)
     assert len(pack["two_minute_review"]) == 4
     assert pack["proof_assets"][0]["href"] == "/health"
+    assert any(item["href"] == "/api/offline-deployment-pack" for item in pack["proof_assets"])
     assert pack["links"]["incident_command_board"] == "/api/incident-command-board"
+    assert pack["links"]["offline_deployment_pack"] == "/api/offline-deployment-pack"
     assert pack["links"]["replay_drift_board"] == "/api/replay-drift-board"
     assert pack["links"]["replay_summary"] == "/api/evals/replays/summary"
 
@@ -140,6 +151,12 @@ def test_engine_health_and_meta():
     assert schema_body["schema"] == "aegis-air-incident-report-v1"
     assert "summary" in schema_body["required_fields"]
     assert "live-probe" in schema_body["delivery_modes"]
+
+    assert offline_deployment_pack.status_code == 200
+    offline_body = offline_deployment_pack.json()
+    assert offline_body["schema"] == "aegis-air-offline-deployment-pack-v1"
+    assert offline_body["model_registry"]["primary"]["model_id"] == "phi3"
+    assert "/api/review-pack" in offline_body["deployment_bundle"]["verification_routes"]
 
 
 def test_store_api_health_and_meta():
