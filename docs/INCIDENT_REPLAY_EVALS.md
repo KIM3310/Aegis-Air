@@ -38,9 +38,9 @@ Across four cases, that produces `32` total rubric checks.
 
 - `4` cases
 - `32/32` checks passed
-- `100%` severity accuracy
-- `100%` failure-bucket accuracy
-- `100%` taxonomy coverage
+- severity labels matched expected outputs across all `4` cases
+- failure-bucket labels matched expected outputs across all `4` cases
+- taxonomy coverage stayed complete for the bundled replay set
 
 ## Use
 

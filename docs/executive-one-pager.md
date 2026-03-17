@@ -63,6 +63,6 @@ Aegis-Air is useful precisely because it does **not** assume those things.
 
 - 4 replay cases
 - 32 / 32 rubric checks passed
-- 100% severity accuracy
-- 100% failure-bucket accuracy
-- 100% taxonomy coverage
+- severity labels matched expected outputs across all 4 replay cases
+- failure-bucket labels matched expected outputs across all 4 replay cases
+- taxonomy coverage stayed complete for the bundled replay set

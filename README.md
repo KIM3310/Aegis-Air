@@ -76,10 +76,10 @@ If you only have a couple of minutes, use this order:
 ## Current proof snapshot
 
 - **4 replay cases**
-- **32 / 32 rubric checks**
-- **100% severity accuracy**
-- **100% failure-bucket accuracy**
-- **100% taxonomy coverage**
+- **32 / 32 rubric checks on the bundled suite**
+- **severity labels matched expected outputs across all 4 replay cases**
+- **failure-bucket labels matched expected outputs across all 4 replay cases**
+- **taxonomy coverage complete for the bundled replay set**
 
 Replay buckets:
 
