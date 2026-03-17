@@ -16,7 +16,7 @@ Aegis-Air probes a target service, classifies the incident locally, and returns 
 |---|---|---|
 | Frontier / runtime reliability | local-first trust boundary, structured RCA contract, replay proof | [`docs/FLAGSHIP_REVIEW_GUIDE.md`](docs/FLAGSHIP_REVIEW_GUIDE.md), `GET /api/runtime/brief`, `GET /api/review-pack` |
 | Big tech / SRE / infra | deterministic incident classification, explicit fallback posture, honest demo boundary | `GET /health`, `GET /api/runtime/scorecard`, `python scripts/run_replay_suite.py` |
-| Palantir / high-trust ops | operator-ready handoff artifacts, evidence-first RCA, reviewable restricted-environment workflow | `GET /api/incident-command-board`, `GET /api/schema/report`, `GET /api/evals/replays` |
+| High-trust workflow systems | operator-ready handoff artifacts, evidence-first RCA, reviewable restricted-environment workflow | `GET /api/incident-command-board`, `GET /api/schema/report`, `GET /api/evals/replays` |
 
 ## Portfolio context
 
