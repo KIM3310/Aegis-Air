@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 import random
 import time
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -74,18 +75,18 @@ def meta():
     }
 
 @app.get("/api/products")
-def get_products():
+async def get_products():
     # Simulate some processing time
-    time.sleep(random.uniform(0.01, 0.1))
+    await asyncio.sleep(random.uniform(0.01, 0.1))
     return [{"id": 1, "name": "Laptop"}, {"id": 2, "name": "Smartphone"}]
 
 @app.get("/api/checkout")
-def checkout():
+async def checkout():
     # Simulate random latency and potential 500 errors to create interesting metrics and trigger chaos testing
     chaos = random.random()
     if chaos < CHECKOUT_ERROR_RATE:
         raise HTTPException(status_code=500, detail="Internal Server Error: Database Connection Lost")
     elif chaos < CHECKOUT_ERROR_RATE + CHECKOUT_LATENCY_RATE:
-        time.sleep(random.uniform(1.0, 3.0))
+        await asyncio.sleep(random.uniform(1.0, 3.0))
 
     return {"status": "success", "order_id": random.randint(1000, 9999)}

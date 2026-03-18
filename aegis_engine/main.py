@@ -29,7 +29,7 @@ app = FastAPI(title="Aegis-Air Engine", description="Local incident review engin
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,6 +39,10 @@ OLLAMA_URL = os.getenv("AEGIS_AIR_OLLAMA_URL", "http://localhost:11434/api/gener
 MODEL_NAME = os.getenv("AEGIS_AIR_MODEL", "phi3")
 TARGET_API_URL = os.getenv("AEGIS_AIR_TARGET_API_URL", "http://localhost:8000/api/checkout")
 CHAOS_PROBE_COUNT = int(os.getenv("AEGIS_AIR_CHAOS_PROBE_COUNT", "10"))
+# TODO: RUNTIME_TELEMETRY is process-local mutable state and will drift across
+# multiple workers (e.g. gunicorn with >1 worker).  For accurate cross-worker
+# counters, read totals from the persisted JSONL runtime store
+# (see runtime_store.build_runtime_store_summary) instead of this dict.
 RUNTIME_TELEMETRY: dict[str, Any] = {
     "chaos_trigger_runs": 0,
     "incident_reports": 0,
@@ -172,8 +176,9 @@ async def _fetch_target_service_meta() -> dict[str, Any]:
     }
 
 
-def build_replay_drift_board() -> dict[str, Any]:
-    replay_suite = run_replay_suite()
+def build_replay_drift_board(replay_suite: dict[str, Any] | None = None) -> dict[str, Any]:
+    if replay_suite is None:
+        replay_suite = run_replay_suite()
     metadata_by_id = {
         item["id"]: item for item in build_replay_metadata()
     }
@@ -319,7 +324,7 @@ def build_offline_deployment_pack() -> dict[str, Any]:
 
 async def build_runtime_brief() -> dict[str, Any]:
     replay_suite = run_replay_suite()
-    drift_board = build_replay_drift_board()
+    drift_board = build_replay_drift_board(replay_suite=replay_suite)
     offline_pack = build_offline_deployment_pack()
     target_service = await _fetch_target_service_meta()
 
@@ -506,7 +511,7 @@ async def build_review_pack() -> dict[str, Any]:
 
 async def build_runtime_scorecard() -> dict[str, Any]:
     replay_suite = run_replay_suite()
-    drift_board = build_replay_drift_board()
+    drift_board = build_replay_drift_board(replay_suite=replay_suite)
     target_service = await _fetch_target_service_meta()
     telemetry = _build_runtime_telemetry_payload()
     persisted = build_runtime_store_summary(10)
