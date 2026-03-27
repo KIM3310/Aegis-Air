@@ -1,0 +1,1352 @@
+"""Aegis-Air engine -- local-first incident review API.
+
+Provides deterministic structured RCA, chaos probe loops, replay
+evaluation, and operator handoff surfaces for air-gapped teams.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import random
+import threading
+import time
+from datetime import datetime, timezone
+from typing import Any, AsyncIterator
+from urllib.parse import urlsplit, urlunsplit
+
+import httpx
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+from aegis_engine.logging import get_logger, generate_correlation_id
+from aegis_engine.replay_evals import (
+    build_replay_metadata,
+    build_replay_summary,
+    build_structured_report,
+    run_replay_suite,
+)
+from aegis_engine.operator_access import operator_token_enabled, require_operator_token
+from aegis_engine.runtime_store import append_runtime_event, build_runtime_store_summary
+
+logger = get_logger(__name__)
+
+app = FastAPI(title="Aegis-Air Engine", description="Local incident review engine for structured RCA")
+
+_CORS_ORIGINS_DEFAULT: str = "http://localhost:3000,http://localhost:5173"
+_cors_origins_raw: str = os.getenv("AEGIS_AIR_CORS_ORIGINS", _CORS_ORIGINS_DEFAULT)
+_cors_origins: list[str] = [origin.strip() for origin in _cors_origins_raw.split(",") if origin.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+OLLAMA_URL: str = os.getenv("AEGIS_AIR_OLLAMA_URL", "http://localhost:11434/api/generate")
+MODEL_NAME: str = os.getenv("AEGIS_AIR_MODEL", "phi3")
+TARGET_API_URL: str = os.getenv("AEGIS_AIR_TARGET_API_URL", "http://localhost:8000/api/checkout")
+CHAOS_PROBE_COUNT: int = int(os.getenv("AEGIS_AIR_CHAOS_PROBE_COUNT", "10"))
+CHAOS_PROBE_TIMEOUT: float = float(os.getenv("AEGIS_AIR_CHAOS_PROBE_TIMEOUT", "5.0"))
+# TODO: RUNTIME_TELEMETRY is process-local mutable state and will drift across
+# multiple workers (e.g. gunicorn with >1 worker).  For accurate cross-worker
+# counters, read totals from the persisted JSONL runtime store
+# (see runtime_store.build_runtime_store_summary) instead of this dict.
+RUNTIME_TELEMETRY: dict[str, Any] = {
+    "chaos_trigger_runs": 0,
+    "incident_reports": 0,
+    "webhook_alerts": 0,
+    "last_chaos_at": None,
+    "last_incident_at": None,
+    "last_webhook_at": None,
+}
+_TELEMETRY_LOCK: threading.Lock = threading.Lock()
+
+
+class AlertPayload(BaseModel):
+    """Incoming alert payload for incident report or webhook endpoints.
+
+    Attributes:
+        service_name: Name of the affected service.
+        incident_time: ISO-formatted timestamp of the incident.
+        status_code: HTTP status code observed.
+        error_details: Free-text description of the error.
+        metrics: Optional pre-aggregated metrics dict.
+        probe_observations: Optional list of probe observation dicts.
+    """
+
+    service_name: str
+    incident_time: str
+    status_code: int
+    error_details: str
+    metrics: dict[str, Any] | None = None
+    probe_observations: list[dict[str, Any]] | None = None
+
+
+AlertPayload.model_rebuild()
+
+
+def build_engine_diagnostics() -> dict[str, Any]:
+    """Build diagnostics payload for the engine.
+
+    Returns:
+        A dict with LLM mode, configuration status, and next-action guidance.
+    """
+    ollama_configured: bool = OLLAMA_URL.startswith("http")
+    target_api_configured: bool = TARGET_API_URL.startswith("http")
+    return {
+        "llm_mode": "local-ollama-with-deterministic-fallback",
+        "ollama_configured": ollama_configured,
+        "target_api_configured": target_api_configured,
+        "replay_eval_ready": True,
+        "live_loop_ready": target_api_configured,
+        "next_action": (
+            "Trigger /api/chaos/trigger for a live probe loop or review /api/evals/replays for replay cases."
+            if target_api_configured
+            else "Configure AEGIS_AIR_TARGET_API_URL to probe a live service. Replay cases remain available."
+        ),
+    }
+
+
+def build_incident_report_schema() -> dict[str, Any]:
+    """Build the incident report JSON schema definition.
+
+    Returns:
+        A dict describing the report schema, required fields, delivery
+        modes, and operator rules.
+    """
+    return {
+        "schema": "aegis-air-incident-report-v1",
+        "version": 1,
+        "required_fields": [
+            "severity",
+            "failure_bucket",
+            "summary",
+            "primary_hypothesis",
+            "supporting_evidence",
+            "immediate_actions",
+            "operator_questions",
+            "timeline",
+            "metrics",
+            "probe_observations",
+            "rca_report",
+        ],
+        "delivery_modes": ["live-probe", "webhook-alert", "recorded-review"],
+        "operator_rules": [
+            "Keep the structured report valid even when Ollama is unavailable.",
+            "Separate deterministic evidence from optional narrative generation.",
+            "Never claim live target readiness unless the target service meta is reachable.",
+        ],
+    }
+
+
+def _record_runtime_event(event_type: str) -> None:
+    """Record a runtime event in both in-memory telemetry and the persisted store.
+
+    Args:
+        event_type: One of ``"chaos"``, ``"incident"``, or ``"webhook"``.
+    """
+    timestamp: str = _utc_now()
+    with _TELEMETRY_LOCK:
+        if event_type == "chaos":
+            RUNTIME_TELEMETRY["chaos_trigger_runs"] += 1
+            RUNTIME_TELEMETRY["last_chaos_at"] = timestamp
+        elif event_type == "incident":
+            RUNTIME_TELEMETRY["incident_reports"] += 1
+            RUNTIME_TELEMETRY["last_incident_at"] = timestamp
+        elif event_type == "webhook":
+            RUNTIME_TELEMETRY["webhook_alerts"] += 1
+            RUNTIME_TELEMETRY["last_webhook_at"] = timestamp
+    append_runtime_event({"event": event_type, "timestamp": timestamp})
+    logger.info(
+        "Runtime event recorded",
+        extra={"event_type": event_type},
+    )
+
+
+def _build_runtime_telemetry_payload() -> dict[str, Any]:
+    """Build a snapshot of in-memory runtime telemetry counters.
+
+    Returns:
+        A dict with event counts and last-seen timestamps.
+    """
+    with _TELEMETRY_LOCK:
+        return {
+            "chaos_trigger_runs": RUNTIME_TELEMETRY["chaos_trigger_runs"],
+            "incident_reports": RUNTIME_TELEMETRY["incident_reports"],
+            "webhook_alerts": RUNTIME_TELEMETRY["webhook_alerts"],
+            "last_chaos_at": RUNTIME_TELEMETRY["last_chaos_at"],
+            "last_incident_at": RUNTIME_TELEMETRY["last_incident_at"],
+            "last_webhook_at": RUNTIME_TELEMETRY["last_webhook_at"],
+        }
+
+
+def _derive_target_meta_url(target_api_url: str) -> str | None:
+    """Derive the ``/meta`` URL from a target API URL.
+
+    Args:
+        target_api_url: The full target API endpoint URL.
+
+    Returns:
+        The meta URL, or ``None`` if the input cannot be parsed.
+    """
+    parsed = urlsplit(target_api_url)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return urlunsplit((parsed.scheme, parsed.netloc, "/meta", "", ""))
+
+
+async def _fetch_target_service_meta() -> dict[str, Any]:
+    """Fetch metadata from the target service's ``/meta`` endpoint.
+
+    Returns:
+        A dict with ``status``, ``meta_url``, and (when reachable)
+        ``service``, ``chaos_profile``, ``diagnostics``, ``ops_contract``,
+        and ``routes`` keys.
+    """
+    meta_url: str | None = _derive_target_meta_url(TARGET_API_URL)
+    if not meta_url:
+        return {
+            "status": "unavailable",
+            "meta_url": None,
+            "reason": "target-api-url-not-configured",
+        }
+
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            response: httpx.Response = await client.get(meta_url)
+            response.raise_for_status()
+            payload: dict[str, Any] = response.json()
+    except (httpx.HTTPError, ValueError, OSError) as exc:
+        logger.debug(
+            "Target meta unreachable",
+            extra={"error_class": type(exc).__name__},
+        )
+        return {
+            "status": "unavailable",
+            "meta_url": meta_url,
+            "reason": f"target-meta-unreachable:{type(exc).__name__}",
+        }
+
+    return {
+        "status": "ok",
+        "meta_url": meta_url,
+        "service": payload.get("service", "unknown"),
+        "chaos_profile": payload.get("chaos_profile", {}),
+        "diagnostics": payload.get("diagnostics", {}),
+        "ops_contract": payload.get("ops_contract", {}),
+        "routes": payload.get("routes", []),
+    }
+
+
+def build_replay_drift_board(replay_suite: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Build the replay drift board ranking cases by risk signals.
+
+    Args:
+        replay_suite: Optional pre-computed suite result.  When ``None``
+            the suite is run fresh.
+
+    Returns:
+        A drift board dict with items sorted by severity and error rate.
+    """
+    if replay_suite is None:
+        replay_suite = run_replay_suite()
+    metadata_by_id: dict[str, dict[str, Any]] = {
+        item["id"]: item for item in build_replay_metadata()
+    }
+    persisted: dict[str, Any] = build_runtime_store_summary(10)
+    severity_rank: dict[str, int] = {"SEV1": 0, "SEV2": 1, "SEV3": 2}
+
+    items: list[dict[str, Any]] = []
+    for run in replay_suite["runs"]:
+        metadata: dict[str, Any] = metadata_by_id.get(run["case_id"], {})
+        drift_signals: list[str] = []
+        if float(metadata.get("error_rate_pct", 0.0)) >= 30.0:
+            drift_signals.append("elevated_error_rate")
+        if int(metadata.get("p95_latency_ms", 0) or 0) >= 1000:
+            drift_signals.append("high_p95_latency")
+        if str(run.get("severity") or "") == "SEV1":
+            drift_signals.append("sev1_case")
+        if float(run.get("score_pct", 0.0)) < 100.0:
+            drift_signals.append("regression_gap")
+
+        items.append(
+            {
+                "case_id": run["case_id"],
+                "title": run["title"],
+                "severity": run["severity"],
+                "failure_bucket": run["failure_bucket"],
+                "score_pct": run["score_pct"],
+                "error_rate_pct": float(metadata.get("error_rate_pct", 0.0) or 0.0),
+                "p95_latency_ms": int(metadata.get("p95_latency_ms", 0) or 0),
+                "sample_size": int(metadata.get("sample_size", 0) or 0),
+                "drift_signals": drift_signals,
+                "next_action": run["report"]["immediate_actions"][0],
+                "summary": run["report"]["summary"],
+            }
+        )
+
+    items = sorted(
+        items,
+        key=lambda item: (
+            severity_rank.get(item["severity"], 99),
+            -float(item["error_rate_pct"]),
+            -int(item["p95_latency_ms"]),
+            str(item["case_id"]),
+        ),
+    )
+    bucket_counts: dict[str, int] = {}
+    for item in items:
+        bucket: str = str(item["failure_bucket"])
+        bucket_counts[bucket] = bucket_counts.get(bucket, 0) + 1
+    top_failure_bucket: str | None = (
+        sorted(bucket_counts.items(), key=lambda item: (-item[1], item[0]))[0][0]
+        if bucket_counts
+        else None
+    )
+
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        "schema": "aegis-air-replay-drift-board-v1",
+        "summary": {
+            "visible_runs": len(items),
+            "top_failure_bucket": top_failure_bucket,
+            "highest_error_rate_pct": max((item["error_rate_pct"] for item in items), default=0.0),
+            "highest_p95_latency_ms": max((item["p95_latency_ms"] for item in items), default=0),
+            "attention_runs": sum(1 for item in items if item["drift_signals"]),
+            "runtime_event_count": int(persisted["persisted_count"]),
+        },
+        "items": items,
+        "review_actions": [
+            "Use the drift board to separate stable replay buckets from the cases that still need operator attention.",
+            "Keep replay drift evidence distinct from live target reachability when explaining readiness.",
+            "Pair the drift board with the runtime scorecard before sharing a handoff-ready incident claim.",
+        ],
+        "links": {
+            "health": "/health",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "incident_command_board": "/api/incident-command-board",
+            "replay_drift_board": "/api/replay-drift-board",
+            "replay_summary": "/api/evals/replays/summary",
+            "replay_evals": "/api/evals/replays",
+        },
+    }
+
+
+def build_offline_deployment_pack() -> dict[str, Any]:
+    """Build the offline deployment contract for air-gapped environments.
+
+    Returns:
+        A dict with model registry, deployment bundle, and verification
+        routes for sealed-environment packaging.
+    """
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        "schema": "aegis-air-offline-deployment-pack-v1",
+        "target_environment": "air-gapped-ops",
+        "headline": "Offline deployment contract for local model packaging, replay evidence, and operator install proof.",
+        "model_registry": {
+            "primary": {
+                "model_id": MODEL_NAME,
+                "delivery_mode": "ollama-local",
+                "purpose": "structured incident narrative fallback plus local RCA augmentation",
+            },
+            "deterministic_fallback": {
+                "model_id": "structured-report-builder",
+                "delivery_mode": "builtin",
+                "purpose": "schema-backed incident report generation when local narrative inference is unavailable",
+            },
+        },
+        "deployment_bundle": {
+            "artifacts": [
+                "aegis-air-engine service",
+                "frontend static bundle",
+                "replay eval fixtures",
+                "runtime store bootstrap",
+                "operator runbook",
+            ],
+            "install_steps": [
+                "Install the local model runtime and preload the primary model id.",
+                "Ship replay fixtures and verify /api/evals/replays/summary before operator access.",
+                "Expose /api/offline-deployment-pack and /api/summary-pack as the review front door for sealed environments.",
+            ],
+            "verification_routes": [
+                "/health",
+                "/api/runtime/brief",
+                "/api/runtime/scorecard",
+                "/api/offline-deployment-pack",
+                "/api/summary-pack",
+                "/api/evals/replays/summary",
+            ],
+        },
+        "operator_rules": [
+            "Keep local model availability separate from deterministic replay readiness.",
+            "Treat replay fixtures as a release gate, not a demo-only artifact.",
+            "Expose install proof and review routes before asking operators to trust live-loop claims.",
+        ],
+        "links": {
+            "health": "/health",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "offline_deployment_pack": "/api/offline-deployment-pack",
+            "summary_pack": "/api/summary-pack",
+            "replay_summary": "/api/evals/replays/summary",
+        },
+    }
+
+
+async def build_runtime_brief() -> dict[str, Any]:
+    """Build the comprehensive runtime brief for operator review.
+
+    Assembles replay scores, trust boundary, target reachability,
+    diagnostics, and all test assets into a single review surface.
+
+    Returns:
+        A dict with readiness contract, diagnostics, replay evidence,
+        trust boundary, and navigational links.
+    """
+    replay_suite: dict[str, Any] = run_replay_suite()
+    drift_board: dict[str, Any] = build_replay_drift_board(replay_suite=replay_suite)
+    offline_pack: dict[str, Any] = build_offline_deployment_pack()
+    target_service: dict[str, Any] = await _fetch_target_service_meta()
+
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "headline": "Air-gapped incident review engine with deterministic replay evidence and local-first operator handoff.",
+        "readiness_contract": "aegis-air-runtime-brief-v1",
+        "mode": "air-gapped-local-first",
+        "generated_at": _utc_now(),
+        "diagnostics": build_engine_diagnostics(),
+        "report_contract": build_incident_report_schema(),
+        "replay_summary": replay_suite["summary"],
+        "evidence_counts": {
+            "replay_cases": replay_suite["summary"]["cases"],
+            "rubric_checks": replay_suite["summary"]["total_checks"],
+            "frontend_surfaces": 6,
+            "api_routes": 14,
+        },
+        "trust_boundary": [
+            "telemetry stays local to the operator environment",
+            "structured RCA is deterministic even without Ollama",
+            "replay suite acts as a regression gate before deployment",
+            "target service health is optional and explicitly surfaced as reachable/unreachable",
+        ],
+        "review_flow": [
+            "Open /health to confirm live-loop readiness and review links.",
+            "Read /api/runtime/brief for trust boundary, replay score, and target reachability.",
+            "Read /api/offline-deployment-pack before packaging or deploying into sealed environments.",
+            "Use the local console to run a live or recorded incident review.",
+            "Validate the schema at /api/schema/report before integrating downstream handoff flows.",
+        ],
+        "two_minute_review": [
+            "Open /health to confirm whether the target meta surface is actually reachable.",
+            "Read /api/runtime/brief for replay score, trust boundary, and watchouts.",
+            "Read /api/summary-pack for delivery modes and downstream handoff contract.",
+            "Open /api/evals/replays to verify replay evidence before claiming live-loop readiness.",
+        ],
+        "operator_rules": [
+            "Treat replay score and live probe evidence as separate signals.",
+            "Do not block incident reporting on the local narrative model.",
+            "Prefer structured RCA sections over free-form prose during handoff.",
+        ],
+        "watchouts": [
+            "The default target API is a local demo service, not a production dependency.",
+            "Frontend Pages mode can only show recorded review data when the engine is absent.",
+            "Narrative streaming is optional; the schema-backed report is the source of truth.",
+        ],
+        "artifacts": [
+            {"label": "Engine Meta", "href": "/api/meta", "kind": "route"},
+            {"label": "Platform Compare", "href": "/api/platform-compare", "kind": "route"},
+            {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
+            {"label": "Runtime Scorecard", "href": "/api/runtime/scorecard", "kind": "route"},
+            {"label": "Offline Deployment Pack", "href": "/api/offline-deployment-pack", "kind": "route"},
+            {"label": "Replay Drift Board", "href": "/api/replay-drift-board", "kind": "route"},
+            {"label": "Incident Command Board", "href": "/api/incident-command-board", "kind": "route"},
+            {"label": "Incident Schema", "href": "/api/schema/report", "kind": "route"},
+            {"label": "Replay Summary", "href": "/api/evals/replays/summary", "kind": "route"},
+            {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
+            {"label": "Replay Eval Docs", "href": "docs/INCIDENT_REPLAY_EVALS.md", "kind": "doc"},
+            {"label": "Replay Suite Runner", "href": "scripts/run_replay_suite.py", "kind": "script"},
+        ],
+        "proof_assets": [
+            {"label": "Health Surface", "href": "/health", "kind": "route"},
+            {"label": "Platform Compare", "href": "/api/platform-compare", "kind": "route"},
+            {"label": "Runtime Brief", "href": "/api/runtime/brief", "kind": "route"},
+            {"label": "Runtime Scorecard", "href": "/api/runtime/scorecard", "kind": "route"},
+            {"label": "Offline Deployment Pack", "href": "/api/offline-deployment-pack", "kind": "route"},
+            {"label": "Replay Drift Board", "href": "/api/replay-drift-board", "kind": "route"},
+            {"label": "Incident Command Board", "href": "/api/incident-command-board", "kind": "route"},
+            {"label": "Summary Pack", "href": "/api/summary-pack", "kind": "route"},
+            {"label": "Replay Summary", "href": "/api/evals/replays/summary", "kind": "route"},
+            {"label": "Replay Evals", "href": "/api/evals/replays", "kind": "route"},
+        ],
+        "runtime_telemetry": _build_runtime_telemetry_payload(),
+        "drift_summary": drift_board["summary"],
+        "offline_deployment": {
+            "schema": offline_pack["schema"],
+            "primary_model": offline_pack["model_registry"]["primary"]["model_id"],
+        },
+        "operator_auth": {"enabled": operator_token_enabled()},
+        "target_service": target_service,
+        "routes": [
+            "/health",
+            "/api/meta",
+            "/api/platform-compare",
+            "/api/runtime/brief",
+            "/api/runtime/scorecard",
+            "/api/offline-deployment-pack",
+            "/api/replay-drift-board",
+            "/api/incident-command-board",
+            "/api/schema/report",
+            "/api/chaos/trigger",
+            "/api/incidents/report",
+            "/api/replays",
+            "/api/evals/replays/summary",
+            "/api/evals/replays",
+            "/webhook/alert",
+        ],
+        "links": {
+            "health": "/health",
+            "meta": "/api/meta",
+            "platform_compare": "/api/platform-compare",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "offline_deployment_pack": "/api/offline-deployment-pack",
+            "replay_drift_board": "/api/replay-drift-board",
+            "incident_command_board": "/api/incident-command-board",
+            "summary_pack": "/api/summary-pack",
+            "report_schema": "/api/schema/report",
+            "replay_summary": "/api/evals/replays/summary",
+            "replay_evals": "/api/evals/replays",
+        },
+    }
+
+
+async def build_summary_pack() -> dict[str, Any]:
+    """Build the user-friendly evidence and handoff pack.
+
+    Returns:
+        A dict with evidence summary, target boundary, handoff contract,
+        review sequence, and navigational links.
+    """
+    runtime_brief: dict[str, Any] = await build_runtime_brief()
+    report_contract: dict[str, Any] = runtime_brief["report_contract"]
+    replay_summary: dict[str, Any] = runtime_brief["replay_summary"]
+    drift_summary: dict[str, Any] = runtime_brief["drift_summary"]
+    offline_pack: dict[str, Any] = build_offline_deployment_pack()
+    target_service: dict[str, Any] = runtime_brief["target_service"]
+
+    return {
+        "status": runtime_brief["status"],
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        "readiness_contract": "aegis-air-summary-pack-v1",
+        "headline": "User-friendly pack for replay evidence, target reachability, and downstream handoff readiness in air-gapped environments.",
+        "evidence_bundle": {
+            "replay_cases": replay_summary["cases"],
+            "rubric_checks": replay_summary["total_checks"],
+            "score_pct": replay_summary["score_pct"],
+            "attention_runs": drift_summary["attention_runs"],
+            "target_meta_reachable": target_service.get("status") == "ok",
+            "review_endpoints": [
+                "/health",
+                "/api/meta",
+                "/api/platform-compare",
+                "/api/runtime/brief",
+                "/api/runtime/scorecard",
+                "/api/offline-deployment-pack",
+                "/api/replay-drift-board",
+                "/api/incident-command-board",
+                "/api/summary-pack",
+                "/api/schema/report",
+                "/api/evals/replays/summary",
+                "/api/evals/replays",
+            ],
+            "offline_deployment_contract": offline_pack["schema"],
+        },
+        "target_boundary": {
+            "status": target_service.get("status", "unavailable"),
+            "meta_url": target_service.get("meta_url"),
+            "service": target_service.get("service", "unknown"),
+        },
+        "handoff_contract": {
+            "schema": report_contract["schema"],
+            "delivery_modes": report_contract["delivery_modes"],
+            "required_fields": report_contract["required_fields"],
+        },
+        "review_sequence": [
+            "Confirm /health and /api/meta before claiming live target readiness.",
+            "Read /api/runtime/brief for replay score and trust boundary.",
+            "Read /api/summary-pack for downstream handoff contract and review endpoints.",
+            "Use /api/incident-command-board to prioritize replay risks before sharing RCA output.",
+            "Run live or recorded incident review only after schema and replay evidence align.",
+        ],
+        "two_minute_review": runtime_brief["two_minute_review"],
+        "artifacts": runtime_brief["artifacts"],
+        "proof_assets": runtime_brief["proof_assets"],
+        "watchouts": runtime_brief["watchouts"],
+        "links": {
+            "health": "/health",
+            "meta": "/api/meta",
+            "platform_compare": "/api/platform-compare",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "offline_deployment_pack": "/api/offline-deployment-pack",
+            "replay_drift_board": "/api/replay-drift-board",
+            "incident_command_board": "/api/incident-command-board",
+            "summary_pack": "/api/summary-pack",
+            "report_schema": "/api/schema/report",
+            "replay_summary": "/api/evals/replays/summary",
+            "replay_evals": "/api/evals/replays",
+        },
+    }
+
+
+def build_platform_compare_note() -> dict[str, Any]:
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "schema": "aegis-platform-compare-v1",
+        "headline": "Compact comparison note for when to use Aegis-Air versus AegisOps.",
+        "lanes": [
+            {
+                "product": "Aegis-Air",
+                "best_when": "The reviewer needs a stricter local-first or air-gapped incident lane.",
+                "proof_strength": "Replay evidence, recorded review surfaces, and local telemetry boundary.",
+            },
+            {
+                "product": "AegisOps",
+                "best_when": "The reviewer needs cloud-connected incident response, multimodal review, or broader operator tooling.",
+                "proof_strength": "Live cloud proof, richer integrations, and broader operations surface area.",
+            },
+        ],
+        "reviewer_fast_path": [
+            "/api/platform-compare",
+            "/api/runtime/brief",
+            "/api/summary-pack",
+            "/api/evals/replays/summary",
+        ],
+    }
+
+
+async def build_runtime_scorecard() -> dict[str, Any]:
+    """Build the runtime scorecard with telemetry, replay scores, and drift.
+
+    Returns:
+        A dict with runtime posture, telemetry counters, replay scores,
+        drift summary, persistence state, and recommendations.
+    """
+    replay_suite: dict[str, Any] = run_replay_suite()
+    drift_board: dict[str, Any] = build_replay_drift_board(replay_suite=replay_suite)
+    target_service: dict[str, Any] = await _fetch_target_service_meta()
+    telemetry: dict[str, Any] = _build_runtime_telemetry_payload()
+    persisted: dict[str, Any] = build_runtime_store_summary(10)
+    total_events: int = (
+        telemetry["chaos_trigger_runs"]
+        + telemetry["incident_reports"]
+        + telemetry["webhook_alerts"]
+    )
+
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        "schema": "aegis-air-runtime-scorecard-v1",
+        "runtime": {
+            "mode": "air-gapped-local-first",
+            "llm_mode": build_engine_diagnostics()["llm_mode"],
+            "route_count": 14,
+            "target_meta_reachable": target_service.get("status") == "ok",
+        },
+        "telemetry": telemetry,
+        "replay_scorecard": {
+            "score_pct": replay_suite["summary"]["score_pct"],
+            "cases": replay_suite["summary"]["cases"],
+            "taxonomy_coverage_pct": replay_suite["summary"]["taxonomy_coverage_pct"],
+            "bucket_accuracy_pct": replay_suite["summary"]["bucket_accuracy_pct"],
+        },
+        "drift": {
+            "schema": drift_board["schema"],
+            "summary": drift_board["summary"],
+        },
+        "activity": {
+            "total_runtime_events": total_events,
+            "delivery_modes": ["live-probe", "webhook-alert", "recorded-review"],
+        },
+        "persistence": persisted,
+        "operator_auth": {
+            "enabled": operator_token_enabled(),
+            "protected_routes": ["/api/chaos/trigger", "/api/incidents/report", "/webhook/alert"],
+        },
+        "recommendations": [
+            "Run replay summary before claiming incident taxonomy stability.",
+            (
+                "Target meta is reachable. Keep live-loop and replay evidence separate during handoff."
+                if target_service.get("status") == "ok"
+                else "Target meta is unreachable. Keep claims scoped to replay and local incident review surfaces."
+            ),
+            (
+                "Runtime event counters are populated. Recheck scorecard after each probe or webhook run."
+                if total_events > 0
+                else "Trigger chaos or submit a report to populate runtime telemetry before demo handoff."
+            ),
+        ],
+        "links": {
+            "health": "/health",
+            "meta": "/api/meta",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "offline_deployment_pack": "/api/offline-deployment-pack",
+            "replay_drift_board": "/api/replay-drift-board",
+            "summary_pack": "/api/summary-pack",
+            "incident_command_board": "/api/incident-command-board",
+            "replay_summary": "/api/evals/replays/summary",
+        },
+    }
+
+
+async def build_incident_command_board(
+    *,
+    severity: str | None = None,
+    failure_bucket: str | None = None,
+    min_score_pct: float | None = None,
+) -> dict[str, Any]:
+    """Build the incident command board with prioritized replay cases.
+
+    Args:
+        severity: Optional severity filter.
+        failure_bucket: Optional failure bucket filter.
+        min_score_pct: Optional minimum score percentage filter.
+
+    Returns:
+        A dict with filtered, prioritized incident items and review actions.
+    """
+    replay_summary: dict[str, Any] = build_replay_summary(
+        severity=severity,
+        failure_bucket=failure_bucket,
+        min_score_pct=min_score_pct,
+    )
+    replay_suite: dict[str, Any] = run_replay_suite()
+    target_service: dict[str, Any] = await _fetch_target_service_meta()
+    severity_rank: dict[str, int] = {"SEV1": 0, "SEV2": 1, "SEV3": 2}
+
+    visible_case_ids: set[str] = {item["case_id"] for item in replay_summary["spotlight_runs"]}
+    visible_runs: list[dict[str, Any]] = [
+        run for run in replay_suite["runs"] if run["case_id"] in visible_case_ids
+    ]
+    prioritized_runs: list[dict[str, Any]] = sorted(
+        visible_runs,
+        key=lambda run: (
+            severity_rank.get(run["severity"], 99),
+            float(run["score_pct"]),
+            str(run["case_id"]),
+        ),
+    )
+
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        "contract_version": "aegis-air-incident-command-board-v1",
+        "filters": replay_summary["filters"],
+        "summary": {
+            "visible_runs": replay_summary["summary"]["visible_runs"],
+            "critical_runs": len([run for run in prioritized_runs if run["severity"] == "SEV1"]),
+            "attention_runs": len([run for run in prioritized_runs if float(run["score_pct"]) < 100.0]),
+            "target_meta_reachable": target_service.get("status") == "ok",
+            "avg_score_pct": replay_summary["summary"]["avg_score_pct"],
+        },
+        "items": [
+            {
+                "case_id": run["case_id"],
+                "title": run["title"],
+                "severity": run["severity"],
+                "failure_bucket": run["failure_bucket"],
+                "score_pct": run["score_pct"],
+                "failed_checks": [check["name"] for check in run["checks"] if not check["passed"]],
+                "next_action": run["report"]["immediate_actions"][0],
+                "summary": run["report"]["summary"],
+            }
+            for run in prioritized_runs
+        ],
+        "review_actions": [
+            "Start with SEV1 or low-score replay cases before trusting the live target loop.",
+            "Keep target reachability separate from replay accuracy when making incident claims.",
+            "Use /api/runtime/scorecard and /api/summary-pack to pair runtime posture with replay evidence.",
+        ],
+        "links": {
+            "health": "/health",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "incident_command_board": "/api/incident-command-board",
+            "summary_pack": "/api/summary-pack",
+            "replay_summary": "/api/evals/replays/summary",
+            "replay_evals": "/api/evals/replays",
+        },
+    }
+
+
+def _utc_now() -> str:
+    """Return the current UTC time as an ISO 8601 string.
+
+    Returns:
+        An ISO-formatted UTC timestamp.
+    """
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _sse_event(event_type: str, content: Any) -> str:
+    """Format a server-sent event payload.
+
+    Args:
+        event_type: The SSE event type label.
+        content: The JSON-serializable payload.
+
+    Returns:
+        A formatted SSE ``data:`` line.
+    """
+    return f"data: {json.dumps({'type': event_type, 'content': content})}\n\n"
+
+
+def _chunk_text(text: str, chunk_size: int = 36) -> list[str]:
+    """Split *text* into word-boundary-aligned chunks.
+
+    Args:
+        text: The input text to chunk.
+        chunk_size: Maximum character width per chunk.
+
+    Returns:
+        A list of text chunks.
+    """
+    words: list[str] = text.split()
+    chunks: list[str] = []
+    current: str = ""
+    for word in words:
+        candidate: str = f"{current} {word}".strip()
+        if len(candidate) <= chunk_size:
+            current = candidate
+            continue
+        if current:
+            chunks.append(f"{current} ")
+        current = word
+    if current:
+        chunks.append(f"{current} ")
+    return chunks
+
+
+async def _stream_narrative_tokens(report: dict[str, Any]) -> AsyncIterator[str]:
+    """Stream narrative tokens from Ollama with deterministic fallback.
+
+    Attempts to stream tokens from the configured Ollama endpoint.  On
+    failure, falls back to chunked delivery of the deterministic RCA text.
+
+    Args:
+        report: The structured incident report dict.
+
+    Yields:
+        Individual narrative tokens or text chunks.
+    """
+    prompt: str = (
+        "You are Aegis-Air, a zero-trust SRE copilot. Convert the structured incident report below "
+        "into a concise operator handoff with one paragraph of RCA and two action bullets.\n\n"
+        f"{report['rca_report']}"
+    )
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            async with client.stream(
+                "POST",
+                OLLAMA_URL,
+                json={"model": MODEL_NAME, "prompt": prompt, "stream": True},
+            ) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_lines():
+                    if not chunk:
+                        continue
+                    try:
+                        data: dict[str, Any] = json.loads(chunk)
+                    except json.JSONDecodeError:
+                        continue
+                    token: str = data.get("response", "")
+                    if token:
+                        yield token
+        return
+    except (httpx.HTTPError, OSError):
+        pass
+
+    for chunk in _chunk_text(report["rca_report"]):
+        await asyncio.sleep(0.02)
+        yield chunk
+
+
+async def _probe_target(client: httpx.AsyncClient, probe_number: int) -> dict[str, Any]:
+    """Execute a single chaos probe against the target API.
+
+    Args:
+        client: The HTTP client to use.
+        probe_number: Sequential probe number for logging.
+
+    Returns:
+        A probe observation dict with ``probe``, ``outcome``,
+        ``status_code``, ``latency_ms``, and ``detail`` keys.
+    """
+    start: float = time.perf_counter()
+    try:
+        response: httpx.Response = await client.get(TARGET_API_URL, timeout=CHAOS_PROBE_TIMEOUT)
+        latency_ms: int = int((time.perf_counter() - start) * 1000)
+        detail: str = response.text.strip() or f"HTTP {response.status_code}"
+        outcome: str = "success"
+        if response.status_code >= 400:
+            outcome = "error"
+        elif latency_ms >= 1000:
+            outcome = "latency"
+            detail = f"Latency spike observed at {latency_ms} ms"
+        return {
+            "probe": probe_number,
+            "outcome": outcome,
+            "status_code": response.status_code,
+            "latency_ms": latency_ms,
+            "detail": detail,
+        }
+    except (httpx.HTTPError, OSError) as exc:
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        logger.warning(
+            "Probe failed",
+            extra={
+                "probe_number": probe_number,
+                "error_class": type(exc).__name__,
+                "latency_ms": latency_ms,
+            },
+        )
+        return {
+            "probe": probe_number,
+            "outcome": "error",
+            "status_code": 503,
+            "latency_ms": latency_ms,
+            "detail": f"Connection failed: {type(exc).__name__}: {exc}",
+        }
+
+
+async def generate_chaos_and_stream_response() -> AsyncIterator[str]:
+    """Run a chaos probe loop and stream SSE events with results.
+
+    Yields:
+        SSE-formatted event strings including log lines, the structured
+        report, narrative tokens, and a done marker.
+    """
+    correlation_id: str = generate_correlation_id()
+    logger.info(
+        "Chaos probe loop started",
+        extra={"event_type": "chaos_start", "correlation_id": correlation_id},
+    )
+    yield _sse_event("log", "[Chaos Engine] Starting zero-trust probe loop against the target API.\n")
+
+    probe_observations: list[dict[str, Any]] = []
+    anomaly_seen: bool = False
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for probe_number in range(1, CHAOS_PROBE_COUNT + 1):
+            yield _sse_event("log", f"[Probe {probe_number}] -> GET {TARGET_API_URL}\n")
+            observation: dict[str, Any] = await _probe_target(client, probe_number)
+            probe_observations.append(observation)
+
+            if observation["outcome"] == "success":
+                yield _sse_event("log", f"      SUCCESS {observation['status_code']} in {observation['latency_ms']} ms\n")
+            elif observation["outcome"] == "latency":
+                anomaly_seen = True
+                yield _sse_event("log", f"      LATENCY SPIKE {observation['latency_ms']} ms\n")
+            else:
+                anomaly_seen = True
+                yield _sse_event("log", f"      INCIDENT SIGNAL {observation['status_code']}: {observation['detail']}\n")
+
+            if anomaly_seen and len(probe_observations) >= 6:
+                break
+            await asyncio.sleep(0.25 + random.random() * 0.35)
+
+    if not anomaly_seen:
+        yield _sse_event("log", "[Chaos Engine] Probe loop completed without a strong incident signal.\n")
+        yield _sse_event("done", {"status": "no-incident"})
+        return
+
+    lead_observation: dict[str, Any] = next(
+        (item for item in probe_observations if item["outcome"] != "success"),
+        probe_observations[-1],
+    )
+    payload: dict[str, Any] = {
+        "service_name": "e-commerce-checkout-api",
+        "incident_time": _utc_now(),
+        "status_code": lead_observation["status_code"],
+        "error_details": lead_observation["detail"],
+        "probe_observations": probe_observations,
+    }
+    report: dict[str, Any] = build_structured_report(payload)
+
+    logger.info(
+        "Chaos incident classified",
+        extra={
+            "event_type": "chaos_incident",
+            "correlation_id": correlation_id,
+            "severity": report["severity"],
+            "failure_bucket": report["failure_bucket"],
+            "confidence": report["confidence"],
+        },
+    )
+
+    yield _sse_event(
+        "log",
+        f"\n[Aegis-Air] Structured incident report ready: {report['severity']} {report['failure_bucket']}.\n",
+    )
+    yield _sse_event("report", report)
+    yield _sse_event("log", "[Aegis-Air] Drafting concise operator handoff.\n\n")
+
+    async for token in _stream_narrative_tokens(report):
+        yield _sse_event("token", token)
+
+    yield _sse_event("log", "\n\n[Aegis-Air] Incident review complete.\n")
+    yield _sse_event("done", {"status": "completed"})
+
+
+@app.get("/api/chaos/trigger")
+async def trigger_chaos_endpoint(request: Request) -> StreamingResponse:
+    """Trigger a chaos probe loop against the configured target API.
+
+    Requires operator token when authentication is enabled.
+
+    Returns:
+        A streaming SSE response with probe results and incident analysis.
+    """
+    require_operator_token(request)
+    _record_runtime_event("chaos")
+    return StreamingResponse(generate_chaos_and_stream_response(), media_type="text/event-stream")
+
+
+@app.post("/api/incidents/report")
+async def build_report_endpoint(payload: AlertPayload, request: Request) -> dict[str, Any]:
+    """Build a structured incident report from an alert payload.
+
+    Requires operator token when authentication is enabled.
+
+    Args:
+        payload: The alert payload.
+        request: The incoming HTTP request.
+
+    Returns:
+        A dict with the structured report and RCA text.
+    """
+    require_operator_token(request)
+    _record_runtime_event("incident")
+    report: dict[str, Any] = build_structured_report(payload.model_dump())
+    return {"status": "success", "report": report, "rca_report": report["rca_report"]}
+
+
+@app.post("/webhook/alert")
+async def handle_alert(payload: AlertPayload, request: Request) -> dict[str, Any]:
+    """Handle an incoming webhook alert and produce a structured report.
+
+    Requires operator token when authentication is enabled.
+
+    Args:
+        payload: The alert payload.
+        request: The incoming HTTP request.
+
+    Returns:
+        A dict with the structured report and RCA text.
+    """
+    require_operator_token(request)
+    _record_runtime_event("webhook")
+    report: dict[str, Any] = build_structured_report(payload.model_dump())
+    return {
+        "status": "success",
+        "message": "Webhook received and analyzed locally.",
+        "report": report,
+        "rca_report": report["rca_report"],
+    }
+
+
+@app.get("/api/replays")
+def list_replays() -> dict[str, Any]:
+    """List all available replay case metadata.
+
+    Returns:
+        A dict with service identity and replay metadata list.
+    """
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "replays": build_replay_metadata(),
+    }
+
+
+@app.get("/api/evals/replays")
+def replay_eval_summary() -> dict[str, Any]:
+    """Run and return the full replay evaluation suite.
+
+    Returns:
+        A dict with suite summary, severity/bucket breakdowns,
+        taxonomy, and per-case run results.
+    """
+    suite: dict[str, Any] = run_replay_suite()
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        **suite,
+    }
+
+
+@app.get("/api/evals/replays/summary")
+def replay_eval_review_summary(
+    min_score_pct: float | None = None,
+    failure_bucket: str | None = None,
+    severity: str | None = None,
+) -> dict[str, Any]:
+    """Return a filtered replay summary with spotlight runs.
+
+    Args:
+        min_score_pct: Minimum score percentage filter.
+        failure_bucket: Failure bucket filter.
+        severity: Severity filter.
+
+    Returns:
+        A filtered summary dict.
+
+    Raises:
+        HTTPException: 400 on invalid filter values.
+    """
+    try:
+        summary: dict[str, Any] = build_replay_summary(
+            min_score_pct=min_score_pct,
+            failure_bucket=failure_bucket,
+            severity=severity,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        **summary,
+    }
+
+
+@app.get("/api/incident-command-board")
+async def incident_command_board(
+    min_score_pct: float | None = None,
+    failure_bucket: str | None = None,
+    severity: str | None = None,
+) -> dict[str, Any]:
+    """Return the incident command board with prioritized replay cases.
+
+    Args:
+        min_score_pct: Minimum score percentage filter.
+        failure_bucket: Failure bucket filter.
+        severity: Severity filter.
+
+    Returns:
+        A prioritized command board dict.
+
+    Raises:
+        HTTPException: 400 on invalid filter values.
+    """
+    try:
+        return await build_incident_command_board(
+            min_score_pct=min_score_pct,
+            failure_bucket=failure_bucket,
+            severity=severity,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/schema/report")
+def report_schema() -> dict[str, Any]:
+    """Return the incident report JSON schema.
+
+    Returns:
+        A dict with the schema definition and required fields.
+    """
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "generated_at": _utc_now(),
+        **build_incident_report_schema(),
+    }
+
+
+@app.get("/api/platform-compare")
+def platform_compare() -> dict[str, Any]:
+    return build_platform_compare_note()
+
+
+@app.get("/api/runtime/brief")
+async def runtime_brief() -> dict[str, Any]:
+    """Return the comprehensive runtime brief.
+
+    Returns:
+        The full runtime brief dict.
+    """
+    return await build_runtime_brief()
+
+
+@app.get("/api/runtime/scorecard")
+async def runtime_scorecard() -> dict[str, Any]:
+    """Return the runtime scorecard with telemetry and replay scores.
+
+    Returns:
+        The full runtime scorecard dict.
+    """
+    return await build_runtime_scorecard()
+
+
+@app.get("/api/offline-deployment-pack")
+def offline_deployment_pack() -> dict[str, Any]:
+    """Return the offline deployment contract.
+
+    Returns:
+        The offline deployment pack dict.
+    """
+    return build_offline_deployment_pack()
+
+
+@app.get("/api/replay-drift-board")
+def replay_drift_board() -> dict[str, Any]:
+    """Return the replay drift board with risk-ranked cases.
+
+    Returns:
+        The drift board dict.
+    """
+    return build_replay_drift_board()
+
+
+@app.get("/api/summary-pack")
+async def summary_pack() -> dict[str, Any]:
+    """Return the user-friendly evidence and handoff pack.
+
+    Returns:
+        The summary pack dict.
+    """
+    return await build_summary_pack()
+
+
+@app.get("/api/meta")
+def engine_meta() -> dict[str, Any]:
+    """Return engine metadata, diagnostics, and route listing.
+
+    Returns:
+        A dict with service identity, model configuration, diagnostics,
+        report contract, features, and routes.
+    """
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "mode": "zero-trust",
+        "model": MODEL_NAME,
+        "ollama_url": OLLAMA_URL,
+        "target_api_url": TARGET_API_URL,
+        "diagnostics": build_engine_diagnostics(),
+        "report_contract": build_incident_report_schema(),
+        "ops_contract": {
+            "schema": "ops-envelope-v1",
+            "version": 2,
+            "required_fields": ["service", "status", "diagnostics.next_action"],
+        },
+        "features": [
+            "chaos-trigger",
+            "structured-incident-report",
+            "operator-auth-boundary",
+            "incident-command-board",
+            "replay-drift-board",
+            "replay-summary",
+            "replay-evals",
+            "runtime-brief",
+            "runtime-scorecard",
+            "platform-compare",
+            "offline-deployment-pack",
+            "summary-pack",
+            "report-schema",
+            "webhook-alert-ingest",
+            "static-frontend-mount",
+        ],
+        "routes": [
+            "/health",
+            "/api/meta",
+            "/api/platform-compare",
+            "/api/runtime/brief",
+            "/api/runtime/scorecard",
+            "/api/offline-deployment-pack",
+            "/api/replay-drift-board",
+            "/api/incident-command-board",
+            "/api/summary-pack",
+            "/api/schema/report",
+            "/api/chaos/trigger",
+            "/api/incidents/report",
+            "/api/replays",
+            "/api/evals/replays/summary",
+            "/api/evals/replays",
+            "/webhook/alert",
+        ],
+        "auth": {"operator_token_enabled": operator_token_enabled()},
+    }
+
+
+@app.get("/health")
+def health_check() -> dict[str, Any]:
+    """Return the engine health check with diagnostics and capabilities.
+
+    Returns:
+        A dict with status, diagnostics, capabilities, ops contract,
+        and navigational links.
+    """
+    return {
+        "status": "ok",
+        "service": "aegis-air-engine",
+        "message": "Aegis-Air engine online. Zero-trust mode active.",
+        "diagnostics": build_engine_diagnostics(),
+        "auth": {"operator_token_enabled": operator_token_enabled()},
+        "capabilities": [
+            "runtime-brief-surface",
+            "runtime-scorecard-surface",
+            "platform-compare-surface",
+            "offline-deployment-pack-surface",
+            "replay-drift-board-surface",
+            "incident-command-board-surface",
+            "summary-pack-surface",
+            "report-schema-surface",
+            "replay-summary-surface",
+            "replay-eval-surface",
+        ],
+        "ops_contract": {
+            "schema": "ops-envelope-v1",
+            "version": 2,
+            "required_fields": ["service", "status", "diagnostics.next_action"],
+        },
+        "links": {
+            "meta": "/api/meta",
+            "platform_compare": "/api/platform-compare",
+            "runtime_brief": "/api/runtime/brief",
+            "runtime_scorecard": "/api/runtime/scorecard",
+            "offline_deployment_pack": "/api/offline-deployment-pack",
+            "replay_drift_board": "/api/replay-drift-board",
+            "incident_command_board": "/api/incident-command-board",
+            "summary_pack": "/api/summary-pack",
+            "report_schema": "/api/schema/report",
+            "chaos_trigger": "/api/chaos/trigger",
+            "replay_summary": "/api/evals/replays/summary",
+            "replay_evals": "/api/evals/replays",
+        },
+    }
+
+
+frontend_path: str = os.path.join(os.path.dirname(__file__), "..", "frontend")
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")

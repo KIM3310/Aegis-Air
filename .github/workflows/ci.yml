@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Prepare test artifact directory
+        run: mkdir -p artifacts
+
+      - name: Bytecode compile check
+        run: python -m compileall -q .
+
+      - name: Test
+        run: python -m pytest -q --junitxml=artifacts/pytest.xml
+
+      - name: Replay suite
+        run: python scripts/run_replay_suite.py > artifacts/replay-suite.json
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegis-air-proof-artifacts
+          path: |
+            artifacts/pytest.xml
+            artifacts/replay-suite.json

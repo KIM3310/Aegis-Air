@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+.venv*/
+env/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Logs and runtime
+*.log
+nohup.out
+
+# Local artifacts
+media/
+.codex_runs/
+.wrangler/
+.runtime/
+.omc/

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta name="description" content="Local-first incident review engine for air-gapped teams: probe, classify, and generate structured RCA without sending telemetry to public APIs.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Aegis-Air Ops Console">
+    <meta property="og:description" content="Local-first incident review engine for air-gapped teams: probe, classify, and generate structured RCA without sending telemetry to public APIs.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Aegis-Air Ops Console">
+    <meta name="twitter:description" content="Local-first incident review engine for air-gapped teams: probe, classify, and generate structured RCA without sending telemetry to public APIs."><title>Aegis-Air Ops Console</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <a class="skip-link" href="#readiness-panel">Skip to readiness panel</a>
+    <div class="ambient-glow ambient-glow--cyan"></div>
+    <div class="ambient-glow ambient-glow--red"></div>
+
+    <header class="glass-header" role="banner">
+        <div class="logo">
+            <span class="shield">🛡️</span>
+            <div>
+                <h1>Aegis-Air <span>Ops Console</span></h1>
+                <p class="header-copy">Private telemetry stays local. Start with the summary pack, then probe live only when the local engine is wired.</p>
+            </div>
+        </div>
+        <div class="header-badges">
+            <span class="badge">Local-first</span>
+            <span class="badge">Replay Suite</span>
+            <span class="badge">Private Telemetry</span>
+        </div>
+    </header>
+
+    <main class="dashboard-shell" role="main" aria-label="Aegis-Air ops dashboard">
+        <section class="panel glass-panel mission-grid">
+            <div class="mission-copy">
+                <span class="mission-eyebrow">Recorded review ready</span>
+                <h2>Rehearse the failure story before the live probe ever touches a private target.</h2>
+                <p class="mission-lead">
+                    Aegis-Air is built for air-gapped incident response: review the stored evidence pack, inspect the strongest replay,
+                    then wire the local engine only when the trust boundary is understood.
+                </p>
+                <div class="mission-actions">
+                    <a class="primary-btn" href="#readiness-panel">Open summary</a>
+                    <a class="secondary-btn mission-link" href="#replay-panel">Inspect replay suite</a>
+                    <a class="secondary-btn mission-link" href="#live-probe-panel">Jump to live probe loop</a>
+                </div>
+                <div class="mission-proof-strip">
+                    <article class="mission-proof-card">
+                        <span class="section-label">Replay gate</span>
+                        <strong>4 cases · 32/32 checks</strong>
+                        <p>Stored replay evidence stays visible even when the local engine is not wired.</p>
+                    </article>
+                    <article class="mission-proof-card">
+                        <span class="section-label">Trust boundary</span>
+                        <strong>Telemetry stays local</strong>
+                        <p>Public Pages only shows review data and explicit reachability state, never fake live telemetry.</p>
+                    </article>
+                    <article class="mission-proof-card">
+                        <span class="section-label">Evaluation path</span>
+                        <strong>Pack → replay → handoff</strong>
+                        <p>Reviewers can move from the brief to the top replay and commander handoff without leaving the surface.</p>
+                    </article>
+                </div>
+            </div>
+
+            <div class="mission-stage">
+                <div class="stage-shell">
+                    <div class="stage-topline">
+                        <span class="mini-badge">Recorded mode</span>
+                        <span class="mini-badge">SEV1 rehearsal</span>
+                    </div>
+                    <div class="stage-grid">
+                        <article class="stage-incident-card">
+                            <span class="section-label">Representative replay</span>
+                            <h3>Checkout dependency outage</h3>
+                            <p>A 42.9% failure rate stays pinned to a dependency outage story, with schema-backed evidence and next actions ready for handoff.</p>
+                            <div class="stage-stat-row">
+                                <div class="summary-card">
+                                    <span class="label">Failure bucket</span>
+                                    <strong>dependency-outage</strong>
+                                </div>
+                                <div class="summary-card">
+                                    <span class="label">Confidence</span>
+                                    <strong>86%</strong>
+                                </div>
+                            </div>
+                        </article>
+
+                        <article class="stage-trust-card">
+                            <span class="section-label">Operator story</span>
+                            <ul class="detail-list">
+                                <li>Read the runtime brief before discussing live target readiness.</li>
+                                <li>Use the replay suite to prove taxonomy and severity accuracy.</li>
+                                <li>Unlock live probe only after the local engine is intentionally wired.</li>
+                            </ul>
+                        </article>
+                    </div>
+                    <div class="stage-timeline">
+                        <div class="stage-step">
+                            <span>01</span>
+                            <p>Review the runtime brief and trust boundary.</p>
+                        </div>
+                        <div class="stage-step">
+                            <span>02</span>
+                            <p>Open the strongest replay and inspect the RCA summary.</p>
+                        </div>
+                        <div class="stage-step">
+                            <span>03</span>
+                            <p>Copy the commander brief only after the report schema reads cleanly.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel glass-panel readiness-panel" id="readiness-panel">
+            <div class="panel-header">
+                <h2>Local-First Readiness</h2>
+                <span class="mini-badge" id="readiness-source">Recorded profile</span>
+            </div>
+
+            <div class="readiness-summary-grid">
+                <div class="summary-card">
+                    <span class="label">Mode</span>
+                    <strong id="readiness-mode">recorded-review</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Replay Score</span>
+                    <strong id="readiness-score">32/32</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Report Schema</span>
+                    <strong id="readiness-schema">aegis-air-incident-report-v1</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Target Reachability</span>
+                    <strong id="readiness-target">recorded</strong>
+                </div>
+            </div>
+
+            <div class="readiness-tags" id="readiness-tags">
+                <span class="badge">aegis-air-runtime-brief-v1</span>
+                <span class="badge">cases:4</span>
+                <span class="badge">checks:32</span>
+                <span class="badge">bucket:4/4</span>
+            </div>
+
+            <div class="readiness-top-actions">
+                <div>
+                    <p class="section-label">Quick Start</p>
+                    <p class="readiness-helper">Start with Review Path or Top Replay, then open the full pack only when you need deeper deployment proof.</p>
+                </div>
+                <div class="lens-tabs" role="tablist" aria-label="review lens">
+                    <button id="lens-eval-btn" class="secondary-btn lens-tab active" type="button">Incident review</button>
+                    <button id="lens-commander-btn" class="secondary-btn lens-tab" type="button">Commander desk</button>
+                    <button id="lens-recovery-btn" class="secondary-btn lens-tab" type="button">Recovery proof</button>
+                </div>
+                <div class="lens-grid" id="lens-grid">
+                    <article class="report-block">
+                        <span class="section-label">01 · Review path</span>
+                        <p>Start with the pack, then read the strongest replay before you talk about the target.</p>
+                    </article>
+                    <article class="report-block">
+                        <span class="section-label">02 · Replay proof</span>
+                        <p>Use the highest-scoring replay as the first trust-building surface.</p>
+                    </article>
+                    <article class="report-block">
+                        <span class="section-label">03 · Handoff</span>
+                        <p>Copy the commander brief only after the schema-backed report reads cleanly.</p>
+                    </article>
+                </div>
+                <article class="review-focus-rail" id="review-focus-rail">
+                    <div class="review-focus-copy">
+                        <span class="section-label" id="review-focus-label">Replay continuity</span>
+                        <h3 id="review-focus-title">Keep one replay case visible from proof to commander handoff.</h3>
+                        <p id="review-focus-summary">Start with the top replay, keep its bucket and confidence visible, then move into the command brief without losing the incident thread.</p>
+                    </div>
+                    <div class="review-focus-metrics">
+                        <div class="summary-card">
+                            <span class="label">Failure Bucket</span>
+                            <strong id="review-focus-bucket">dependency-outage</strong>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label">Confidence</span>
+                            <strong id="review-focus-confidence">86%</strong>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label">Next Move</span>
+                            <strong id="review-focus-action">Copy the commander brief after the replay summary reads cleanly.</strong>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label">Data Freshness</span>
+                            <strong id="data-freshness">Replay pending · runtime pending</strong>
+                            <span class="label" id="data-freshness-state">Awaiting fresh proof</span>
+                        </div>
+                    </div>
+                    <p class="readiness-helper review-focus-route" id="review-focus-route">Fast path: /api/evals/replays → /api/runtime/brief → /api/incident-command-board.</p>
+                    <p class="readiness-helper" id="review-focus-checkpoint">Replay checkpoint keeps one case key attached from evidence to commander handoff.</p>
+                    <p class="readiness-helper" id="review-focus-bucket-note">Bucket continuity keeps the same failure class visible while proof moves into commander handoff.</p>
+                    <p class="readiness-helper" id="data-freshness-note">Data freshness keeps replay and runtime timestamps visible before commander handoff.</p>
+                    <p class="readiness-helper" id="data-freshness-guard">Commander handoff stays blocked when runtime proof is stale or missing.</p>
+                </article>
+                <div class="reviewpack-action-stack">
+                    <div class="reviewpack-actions reviewpack-actions--primary">
+                        <button id="copy-review-path-btn" class="secondary-btn" type="button">Review Path</button>
+                        <button id="copy-top-replay-btn" class="secondary-btn" type="button">Top Replay</button>
+                        <button id="load-replay-btn" class="secondary-btn" type="button">Load Replay</button>
+                        <button id="copy-commander-brief-btn" class="secondary-btn" type="button">Commander Brief</button>
+                    </div>
+                    <details class="reviewpack-more-actions">
+                        <summary>More proof actions</summary>
+                        <p class="readiness-helper">Open the deeper copy tools only when you need route-by-route proof or a formal handoff artifact.</p>
+                        <div class="reviewpack-actions reviewpack-actions--secondary">
+                            <button id="copy-review-routes-btn" class="secondary-btn" type="button">Review Routes</button>
+                            <button id="copy-summary-pack-btn" class="secondary-btn" type="button">Summary Pack</button>
+                            <button id="copy-evidence-btn" class="secondary-btn" type="button">Evidence Summary</button>
+                            <button id="copy-handoff-btn" class="secondary-btn" type="button">Handoff Snapshot</button>
+                            <button id="copy-readiness-claim-btn" class="secondary-btn" type="button">Readiness Claim</button>
+                        </div>
+                    </details>
+                </div>
+                <p id="reviewpack-hotkeys" class="readiness-helper">Primary keys: T top replay · L load replay · X commander brief. Open More proof actions for routes, pack, handoff, and claim copy.</p>
+            </div>
+
+                <div class="readiness-grid">
+                    <div class="report-block">
+                        <span class="section-label">Review Flow</span>
+                        <ul id="readiness-review-flow" class="detail-list">
+                            <li>Open /health to confirm whether the live loop is intentionally wired.</li>
+                            <li>Read /api/runtime/brief for replay score, trust boundary, and target reachability.</li>
+                            <li>Use recorded review first, then switch to live probing only after the boundary is clear.</li>
+                            <li>Validate the schema before integrating downstream handoff flows.</li>
+                        </ul>
+                    </div>
+                    <div class="report-block">
+                        <span class="section-label">Operator Rules</span>
+                        <ul id="readiness-operator-rules" class="detail-list">
+                            <li>Treat replay score and live-probe evidence as separate signals.</li>
+                            <li>Keep the structured RCA valid even if the local narrative model is unavailable.</li>
+                            <li>Prefer schema-backed sections over free-form prose during handoff.</li>
+                        </ul>
+                    </div>
+                    <div class="report-block">
+                        <span class="section-label">Report Contract</span>
+                        <ul id="readiness-required-fields" class="detail-list">
+                            <li>severity</li>
+                            <li>failure_bucket</li>
+                            <li>summary</li>
+                            <li>supporting_evidence</li>
+                            <li>immediate_actions</li>
+                        </ul>
+                    </div>
+                    <div class="report-block">
+                        <span class="section-label">Current Watchouts</span>
+                        <ul id="readiness-watchouts" class="detail-list">
+                            <li>The target service is intentionally unreachable in recorded mode.</li>
+                            <li>Pages deployments only show stored review data without the local engine.</li>
+                            <li>The schema-backed report remains the source of truth even without narrative streaming.</li>
+                        </ul>
+                    </div>
+                </div>
+
+            <div class="readiness-grid">
+                <div class="report-block">
+                    <span class="section-label">Summary Pack</span>
+                    <p id="reviewpack-headline">User-friendly pack for replay evidence, target reachability, and downstream handoff readiness in air-gapped environments.</p>
+                    <div class="readiness-summary-grid reviewpack-summary-grid">
+                        <div class="summary-card">
+                            <span class="label">Evidence Summary</span>
+                            <strong id="reviewpack-proof">32/32 checks</strong>
+                        </div>
+                        <div class="summary-card">
+                            <span class="label">Target Boundary</span>
+                            <strong id="reviewpack-target">recorded · aegis-air-target-api</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="report-block">
+                    <span class="section-label">Proof Assets</span>
+                    <ul id="reviewpack-artifacts" class="detail-list">
+                        <li>[Proof] Replay suite → /api/replay-suite</li>
+                        <li>[Proof] Runtime brief → /api/runtime/brief</li>
+                        <li>[Proof] Schema contract → /api/schema/report</li>
+                    </ul>
+                </div>
+                <div class="report-block">
+                    <span class="section-label">Review Sequence</span>
+                    <ul id="reviewpack-sequence" class="detail-list">
+                        <li>Read the runtime brief before claiming target readiness.</li>
+                        <li>Inspect the highest-scoring replay and confirm severity/bucket alignment.</li>
+                        <li>Copy the commander brief only after the RCA summary reads cleanly.</li>
+                    </ul>
+                </div>
+                <div class="report-block">
+                    <span class="section-label">Delivery Modes</span>
+                    <ul id="reviewpack-delivery" class="detail-list">
+                        <li>live-probe</li>
+                        <li>webhook-alert</li>
+                        <li>recorded-review</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="dashboard-grid">
+            <section class="panel glass-panel control-panel" id="live-probe-panel">
+                <div class="panel-header">
+                    <h2>Target Infrastructure</h2>
+                    <span class="status healthy" id="target-status">● STANDBY</span>
+                </div>
+
+                <div class="metrics">
+                    <div class="metric-card">
+                        <span class="label">P95 Latency</span>
+                        <span class="value" id="metric-latency">--</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="label">Error Rate</span>
+                        <span class="value" id="metric-error">--</span>
+                    </div>
+                    <p class="microcopy muted" id="reviewpack-shortcuts">Shortcut bar: R routes · P pack · C claim · T top replay · L load replay · ? help</p>
+                </div>
+
+                <div class="ops-brief">
+                    <h3>Run Objective</h3>
+                    <p>Probe the target, capture failure signals, classify the incident, and return a report with evidence and immediate actions.</p>
+                </div>
+
+                <div class="chaos-controls">
+                    <h3>Live Probe Loop</h3>
+                    <p>Run a short probe loop against the target API. Aegis-Air will still return a structured report if Ollama is unavailable.</p>
+                    <button id="chaos-btn" class="cyber-btn">RUN INCIDENT REVIEW</button>
+                </div>
+            </section>
+
+            <div class="analysis-stack">
+                <section class="panel glass-panel report-panel">
+                    <div class="panel-header">
+                        <h2>Latest Incident Report</h2>
+                        <span class="mini-badge" id="report-source">No run yet</span>
+                    </div>
+
+                    <div class="report-metrics">
+                        <div class="report-chip">
+                            <span class="chip-label">Severity</span>
+                            <strong id="report-severity">--</strong>
+                        </div>
+                        <div class="report-chip">
+                            <span class="chip-label">Failure Bucket</span>
+                            <strong id="report-bucket">--</strong>
+                        </div>
+                        <div class="report-chip">
+                            <span class="chip-label">Confidence</span>
+                            <strong id="report-confidence">--</strong>
+                        </div>
+                    </div>
+
+                    <div class="report-block">
+                        <span class="section-label">Summary</span>
+                        <p id="report-summary">Run the live probe loop or inspect the replay suite to populate a structured incident report.</p>
+                    </div>
+
+                    <div class="report-grid">
+                        <div class="report-block">
+                            <span class="section-label">Evidence</span>
+                            <ul id="report-evidence" class="detail-list">
+                                <li>Replay and live runs both populate evidence here.</li>
+                            </ul>
+                        </div>
+                        <div class="report-block">
+                            <span class="section-label">Immediate Actions</span>
+                            <ul id="report-actions" class="detail-list">
+                                <li>Actionable next steps appear here after each incident review.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="panel glass-panel terminal-panel">
+                    <div class="panel-header terminal-header">
+                        <h2>Operator Trace</h2>
+                        <div class="window-controls">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                    </div>
+
+                    <div class="terminal-container" id="terminal-output">
+                        <div class="log-line system">Waiting for incident triggers...</div>
+                    </div>
+                </section>
+            </div>
+        </section>
+
+        <section class="panel glass-panel replay-panel" id="replay-panel">
+            <div class="panel-header">
+                <h2>Replay Suite</h2>
+                <span class="mini-badge" id="replay-refresh-state">Loading...</span>
+            </div>
+
+            <div class="replay-summary-grid">
+                <div class="summary-card">
+                    <span class="label">Overall Score</span>
+                    <strong id="replay-score">--</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Rubric Checks</span>
+                    <strong id="replay-checks">--</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Severity Accuracy</span>
+                    <strong id="replay-severity-accuracy">--</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="label">Taxonomy Coverage</span>
+                    <strong id="replay-taxonomy">--</strong>
+                </div>
+            </div>
+
+            <div class="replay-cases" id="replay-cases">
+                <div class="empty-state">Loading replay cases.</div>
+            </div>
+
+            <div class="report-block" style="margin-top: 1.5rem;">
+                <span class="section-label">Replay Drift Board</span>
+                <div class="replay-summary-grid">
+                    <div class="summary-card">
+                        <span class="label">Top Bucket</span>
+                        <strong id="drift-top-bucket">--</strong>
+                    </div>
+                    <div class="summary-card">
+                        <span class="label">Attention Runs</span>
+                        <strong id="drift-attention-runs">--</strong>
+                    </div>
+                    <div class="summary-card">
+                        <span class="label">Worst Score</span>
+                        <strong id="drift-worst-score">--</strong>
+                    </div>
+                    <div class="summary-card">
+                        <span class="label">Visible Runs</span>
+                        <strong id="drift-visible-runs">--</strong>
+                    </div>
+                </div>
+                <ul id="drift-review-actions" class="detail-list">
+                    <li>Loading replay drift signals.</li>
+                </ul>
+                <div class="replay-cases" id="drift-items">
+                    <div class="empty-state">Loading drift board.</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

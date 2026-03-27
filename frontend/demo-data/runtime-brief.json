@@ -1,0 +1,85 @@
+{
+  "status": "ok",
+  "service": "aegis-air-engine",
+  "headline": "Air-gapped incident review engine with deterministic replay evidence and local-first operator handoff.",
+  "readiness_contract": "aegis-air-runtime-brief-v1",
+  "mode": "recorded-review",
+  "generated_at": "2026-03-08T08:00:00Z",
+  "diagnostics": {
+    "llm_mode": "local-ollama-with-deterministic-fallback",
+    "ollama_configured": false,
+    "target_api_configured": false,
+    "replay_eval_ready": true,
+    "live_loop_ready": false,
+    "next_action": "Review recorded replay evidence or run the local engine to enable live probing."
+  },
+  "report_contract": {
+    "schema": "aegis-air-incident-report-v1",
+    "version": 1,
+    "required_fields": [
+      "severity",
+      "failure_bucket",
+      "summary",
+      "primary_hypothesis",
+      "supporting_evidence",
+      "immediate_actions",
+      "operator_questions",
+      "timeline",
+      "metrics",
+      "probe_observations",
+      "rca_report"
+    ],
+    "delivery_modes": ["live-probe", "webhook-alert", "recorded-review"],
+    "operator_rules": [
+      "Keep the structured report valid even when Ollama is unavailable.",
+      "Separate deterministic evidence from optional narrative generation.",
+      "Never claim live target readiness unless the target service meta is reachable."
+    ]
+  },
+  "replay_summary": {
+    "cases": 4,
+    "passed_checks": 32,
+    "total_checks": 32,
+    "score_pct": 100.0,
+    "severity_accuracy_pct": 100.0,
+    "bucket_accuracy_pct": 100.0,
+    "taxonomy_coverage_pct": 100.0
+  },
+  "evidence_counts": {
+    "replay_cases": 4,
+    "rubric_checks": 32,
+    "frontend_surfaces": 4,
+    "api_routes": 9
+  },
+  "trust_boundary": [
+    "telemetry stays local to the operator environment",
+    "structured RCA is deterministic even without Ollama",
+    "replay suite acts as a regression gate before deployment",
+    "target service health is optional and explicitly surfaced as reachable/unreachable"
+  ],
+  "review_flow": [
+    "Open /health to confirm live-loop readiness and review links.",
+    "Read /api/runtime/brief for trust boundary, replay score, and target reachability.",
+    "Use the local console to run a live or recorded incident review.",
+    "Validate the schema at /api/schema/report before integrating downstream handoff flows."
+  ],
+  "operator_rules": [
+    "Treat replay score and live probe evidence as separate signals.",
+    "Do not block incident reporting on the local narrative model.",
+    "Prefer structured RCA sections over free-form prose during handoff."
+  ],
+  "watchouts": [
+    "The target service is not reachable in recorded mode.",
+    "Pages deployments can only show stored review data without the local engine.",
+    "Narrative streaming is optional; the schema-backed report is the source of truth."
+  ],
+  "target_service": {
+    "status": "recorded",
+    "meta_url": null,
+    "service": "aegis-air-target-api",
+    "diagnostics": {
+      "chaos_enabled": true,
+      "metrics_ready": true
+    }
+  }
+}
