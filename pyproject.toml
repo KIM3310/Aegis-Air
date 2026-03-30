@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Local-first incident review engine with replay evaluation and user-facing service surfaces."
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{ name = "Kim" }]
+authors = [{name = "Doeon Kim", email = "ehdjs1351@gmail.com"}]
 license = "MIT"
 dependencies = [
   "fastapi==0.121.3",
