@@ -30,3 +30,6 @@ include = ["aegis_engine*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[project.urls]
+Repository = "https://github.com/KIM3310/Aegis-Air"
