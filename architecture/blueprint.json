@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "repository": "Aegis-Air",
+  "status": "archived-supporting",
+  "neutrality": {
+    "positioning": "technical operating model",
+    "scope_note": "Describes current proof surfaces and extension seams; does not claim external production traffic or certification unless separately evidenced.",
+    "tone_guard": "Keep the artifact technical, neutral, and non-promotional."
+  },
+  "focus": {
+    "domain": "security operations and controlled automation",
+    "summary": "Repository-local proof surface for security operations and controlled automation, backed by Python service or lab runtime, Terraform infrastructure modules, Container build surface.",
+    "primary_stack": [
+      "Python service or lab runtime",
+      "Terraform infrastructure modules",
+      "Container build surface",
+      "Local compose environment",
+      "GitHub Actions validation"
+    ],
+    "architecture_axes": [
+      "cloud architecture",
+      "AI engineering",
+      "reliability",
+      "security",
+      "operator experience"
+    ]
+  },
+  "cloud_architecture": {
+    "operating_model": "segmented ingest, least-privilege response services, audit trails, and emergency rollback boundaries",
+    "patterns": [
+      "Infrastructure-as-code entrypoint with explicit variables, outputs, and provider boundaries",
+      "Containerized runtime path suitable for repeatable local, staging, or managed service deployment",
+      "Security control plane with audit logging, isolation boundaries, and response review gates"
+    ],
+    "landing_zone_controls": [
+      "identity boundary and least-privilege service access",
+      "environment separation for local, staging, and managed runtime paths",
+      "secret storage outside source and deterministic fallback for missing credentials",
+      "observability hooks for logs, metrics, traces, and audit events",
+      "rollback path for deployment, schema, and model changes"
+    ],
+    "resilience_controls": [
+      "bounded retries with explicit failure states",
+      "health/readiness checks before operator-facing flows are trusted",
+      "idempotent data or artifact writes where repeat execution is possible",
+      "cost and quota guardrails for hosted services and model adapters"
+    ]
+  },
+  "ai_engineering": {
+    "operating_model": "policy-scored triage, evidence extraction, response drafting, and deterministic replay checks",
+    "patterns": [
+      "Map raw events into typed findings, severity labels, response actions, and audit-ready evidence bundles",
+      "Keep automated remediation behind explicit review and rollback boundaries",
+      "Separate deterministic checks from model-generated output so the system remains testable without external credentials",
+      "Capture prompts, inputs, outputs, and decision metadata as inspectable artifacts instead of hidden side effects",
+      "Gate model-assisted actions with policy, confidence, and fallback states before they reach an operator path"
+    ],
+    "evaluation_controls": [
+      "deterministic fixtures for CI-safe verification",
+      "golden output or schema checks for generated artifacts",
+      "trace capture for prompts, tool calls, inputs, and outputs",
+      "quality gates that fail closed when evidence is missing"
+    ],
+    "model_risk_controls": [
+      "unsafe tool execution",
+      "secret exposure",
+      "alert fatigue",
+      "unreviewed automated response"
+    ]
+  },
+  "validation": {
+    "local_command": "python3 scripts/validate_architecture_blueprint.py",
+    "ci_workflow": ".github/workflows/architecture-blueprint.yml",
+    "required_files": [
+      "architecture/blueprint.json",
+      "docs/cloud-ai-architecture.md",
+      "scripts/validate_architecture_blueprint.py"
+    ]
+  },
+  "research_grounding": [
+    {
+      "title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+      "url": "https://arxiv.org/abs/2210.03629"
+    },
+    {
+      "title": "Toolformer: Language Models Can Teach Themselves to Use Tools",
+      "url": "https://arxiv.org/abs/2302.04761"
+    },
+    {
+      "title": "A survey of large language models for cyber security",
+      "url": "https://arxiv.org/abs/2405.04760"
+    }
+  ]
+}
