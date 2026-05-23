@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "~> 6.46"
     }
   }
 }
@@ -15,7 +15,7 @@ provider "aws" {
 # Ensures all LLM nodes and internal APIs do not have public default routes.
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "5.5.0"
+  version = "6.6.1"
 
   name = "aegis-air-vpc"
   cidr = "10.0.0.0/16"
