@@ -288,6 +288,7 @@ python -m pytest tests/test_shared_eval_sync.py -v
 - [Revenue growth model](docs/revenue-growth-model.md) maps the archived proof to an ethical diagnostic, workshop, pilot, or enablement path.
 - [Enterprise readiness notes](docs/enterprise-readiness.md) outlines what must be refreshed before any serious buyer or production use.
 - [Conversion UX model](docs/conversion-ux-model.md) maps the buyer path, behavioral design, UI/UX direction, pricing frame, and ethical conversion guardrails.
+- [Commercial offer](docs/commercial-offer.md) packages the repository into a buyer-ready offer ladder, proof gate, outreach angle, and close path.
 
 ## Cloud + AI Architecture
 
