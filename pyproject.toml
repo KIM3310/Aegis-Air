@@ -11,10 +11,10 @@ requires-python = ">=3.11"
 authors = [{name = "Doeon Kim", email = "ehdjs1351@gmail.com"}]
 license = "MIT"
 dependencies = [
-  "fastapi==0.121.3",
+  "fastapi==0.141.1",
   "uvicorn==0.27.0.post1",
   "prometheus-fastapi-instrumentator==6.1.0",
-  "requests==2.31.0",
+  "requests==2.34.2",
   "httpx==0.26.0",
   "pydantic==2.12.5"
 ]
